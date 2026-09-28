@@ -880,6 +880,8 @@
   }
 
   #pw-personalizados-app .pw-message-countdown { flex:0 0 auto; min-width:26px; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,.25); color:#fff; font-size:12px; font-weight:800; text-align:center; }
+  #pw-personalizados-app .pw-msg-step { display:block; line-height:1.45; }
+  #pw-personalizados-app .pw-msg-step + .pw-msg-step { margin-top:4px; }
   #pw-personalizados-app .pw-message.pw-visible { display: flex; }
   #pw-personalizados-app .pw-message.pw-success { background: var(--pw-green); }
   #pw-personalizados-app .pw-message.pw-error { background: var(--pw-red); }

@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.386
+// PW_BUILD_VERSION: 1.32.387
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -3992,13 +3992,58 @@
     if (type === 'error') reportClientErrorToServer(text);
     const revision = ++messageRevision;
     if (type === 'success' && pendingStorageWrites.size) {
-      displayMessage('Salvando… Aguarde a confirmação do servidor.', 'info');
+      _renderChecklist(
+        [ { label: 'Aguardando confirmação do servidor…', done: false },
+          { label: text, done: false } ],
+        'info', false
+      );
       waitForStorageWrites().then(saved => {
-        if (saved && revision === messageRevision) displayMessage(text, type);
+        if (saved && revision === messageRevision) {
+          _renderChecklist(
+            [ { label: 'Confirmado pelo servidor', done: true },
+              { label: text, done: true } ],
+            'success', true
+          );
+        }
       });
       return;
     }
     displayMessage(text, type);
+  }
+
+  // Renderiza checklist de etapas dentro da caixa de mensagem, marcando cada
+  // item com ○ (pendente) ou ✓ (concluído). startTimer=false mantém a caixa
+  // aberta indefinidamente (fase de espera); true inicia o auto-dismiss normal.
+  function _renderChecklist(steps, type, startTimer) {
+    const box = $('#pw-message');
+    if (!box) return;
+    clearTimeout(messageTimer);
+    clearInterval(messageCountdownTimer);
+    messageTimer = null;
+    messageCountdownTimer = null;
+    box.className = 'pw-message pw-visible pw-' + type;
+    $('#pw-message-text').innerHTML = steps
+      .map(s => '<span class="pw-msg-step">' + (s.done ? '✓' : '○') + ' ' + escapeHtml(s.label) + '</span>')
+      .join('');
+    const countdownEl = $('#pw-message-countdown');
+    if (startTimer) {
+      const duration = messageDisplayDuration(steps.map(s => s.label).join(' '));
+      const endsAt = Date.now() + duration;
+      const updateCountdown = () => {
+        const remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+        countdownEl.textContent = remaining > 0 ? remaining + 's' : '';
+      };
+      updateCountdown();
+      messageCountdownTimer = setInterval(updateCountdown, 250);
+      messageTimer = setTimeout(() => {
+        box.classList.remove('pw-visible');
+        clearInterval(messageCountdownTimer);
+        messageTimer = null;
+        messageCountdownTimer = null;
+      }, duration);
+    } else {
+      countdownEl.textContent = '';
+    }
   }
 
   /**

@@ -213,4 +213,9 @@ pedidos/
 - Corrigido encoding de acentos no PDF NF-e Marketplace (`nfe-marketplace.php` linha 233):
   `mb_strlen`/`mb_substr` substituídos por `strlen`/`substr` — a string já está em
   ISO-8859-1 após `$e()` (single-byte), as funções `mb_*` corrompiam bytes como `á` (0xE1).
+- Mensagens de salvamento unificadas em checklist visual: em vez de duas mensagens
+  separadas, `showMessage()` agora exibe uma caixa única com `○ Aguardando confirmação
+  do servidor…` / `○ [texto]` e, ao confirmar, atualiza para `✓ Confirmado pelo
+  servidor` / `✓ [texto]`. Implementado via `_renderChecklist()` em `pedidos.js/min.js`
+  + classe `.pw-msg-step` em `pedidos.css/min.css`.
 

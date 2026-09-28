@@ -169,7 +169,8 @@
         align-items: center;
         justify-content: flex-start;
         gap: 14px;
-        flex: 0 0 175px;
+        flex: 1 1 140px;
+        max-width: 200px;
         min-height: 230px;
         padding: 28px 20px 24px;
         border: 2px solid #dce8fb !important;
@@ -748,7 +749,7 @@
         .pw-input, .pw-select, .pw-textarea { font-size: 16px; }
         .pw-actions-bottom { justify-content: stretch; }
         .pw-actions-bottom .pw-btn { flex: 1 1 0; }
-        .pw-calc .pw-source-card { flex: 1 1 140px !important; min-height: 200px; }
+        .pw-calc .pw-source-card { flex: 1 1 100% !important; max-width: 100% !important; min-height: 160px; }
         .pw-choice-cards { flex-wrap: wrap; justify-content: stretch; }
         #pw-payment-choice .pw-btn { flex-basis: 100%; width: 100%; }
         #pw-points-use, #pw-pay-later-code { max-width: none !important; width: 100% !important; }

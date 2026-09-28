@@ -196,17 +196,21 @@
 
           <div class="pw-choice-cards">
             <button id="choose-pdf" class="pw-source-card" type="button">
+              <div class="pw-source-card-check" aria-hidden="true">✓</div>
               <div class="pw-source-card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
               </div>
+              <div class="pw-source-card-tag">Arquivo pronto</div>
               <div class="pw-source-card-title">Já tenho o PDF</div>
               <div class="pw-source-card-desc">Envie o arquivo já preparado para impressão. As medidas são lidas automaticamente do documento.</div>
             </button>
 
             <button id="choose-manual" class="pw-source-card" type="button">
+              <div class="pw-source-card-check" aria-hidden="true">✓</div>
               <div class="pw-source-card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg>
               </div>
+              <div class="pw-source-card-tag">Cálculo automático</div>
               <div class="pw-source-card-title">Calculadora de medidas</div>
               <div class="pw-source-card-desc">Informe a quantidade e o tamanho de cada imagem. O sistema calcula o layout e o valor total.</div>
             </button>

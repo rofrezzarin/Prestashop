@@ -156,59 +156,104 @@
 
       .pw-choice-cards {
         display: flex;
-        gap: 16px;
+        gap: 20px;
         flex-wrap: nowrap;
-        margin-top: 4px;
+        margin-top: 8px;
+        justify-content: center;
       }
 
-      /* Especificidade elevada (.pw-calc + .pw-source-card) para sobrescrever
-         estilos de <button> do tema WordPress. */
       .pw-calc .pw-source-card {
+        position: relative;
         display: flex !important;
         flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        flex: 1 1 0;
-        min-width: 0;
-        min-height: 148px;
-        padding: 18px 20px;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 14px;
+        flex: 0 0 175px;
+        min-height: 230px;
+        padding: 28px 20px 24px;
         border: 2px solid #dce8fb !important;
-        border-radius: 14px;
+        border-radius: 18px;
         background: #ffffff !important;
         color: inherit !important;
         cursor: pointer;
-        text-align: left;
+        text-align: center;
         font-family: inherit;
         font-size: inherit;
         font-weight: inherit;
-        box-shadow: 0 1px 4px rgba(11,91,215,.07);
-        transition: border-color .17s, box-shadow .17s, background .17s;
+        box-shadow: 0 2px 8px rgba(11,91,215,.06);
+        transition: border-color .2s, box-shadow .2s, background .2s, transform .2s;
         box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      /* Linha colorida no topo */
+      .pw-calc .pw-source-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #93b4f3, #dce8fb);
+        border-radius: 18px 18px 0 0;
+        transition: background .25s;
       }
 
       .pw-calc .pw-source-card:hover {
         border-color: #93b4f3 !important;
-        background: #f3f7ff !important;
-        box-shadow: 0 2px 8px rgba(11,91,215,.12);
+        background: #f8fbff !important;
+        box-shadow: 0 8px 24px rgba(11,91,215,.13);
+        transform: translateY(-4px);
       }
 
       .pw-calc .pw-source-card.is-selected {
         border-color: var(--primary) !important;
         background: #eef4ff !important;
-        box-shadow: 0 0 0 1px var(--primary);
+        box-shadow: 0 0 0 1px var(--primary), 0 8px 24px rgba(11,91,215,.16);
+      }
+
+      .pw-calc .pw-source-card.is-selected::before {
+        background: linear-gradient(90deg, var(--primary), #93b4f3);
+      }
+
+      /* Badge de check no canto superior direito */
+      .pw-source-card-check {
+        position: absolute;
+        top: 12px; right: 12px;
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        background: var(--primary);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        line-height: 1;
+        opacity: 0;
+        transform: scale(0.5);
+        transition: opacity .2s, transform .25s cubic-bezier(.34,1.56,.64,1);
+        pointer-events: none;
+      }
+
+      .pw-calc .pw-source-card.is-selected .pw-source-card-check {
+        opacity: 1;
+        transform: scale(1);
       }
 
       .pw-source-card-icon {
-        width: 46px;
-        height: 46px;
-        border-radius: 11px;
+        width: 62px;
+        height: 62px;
+        border-radius: 16px;
         background: #dce8fb;
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--primary);
         flex-shrink: 0;
-        transition: background .17s, color .17s;
+        transition: background .2s, color .2s, transform .2s;
+      }
+
+      .pw-calc .pw-source-card:hover .pw-source-card-icon {
+        transform: scale(1.08);
       }
 
       .pw-calc .pw-source-card.is-selected .pw-source-card-icon {
@@ -216,17 +261,32 @@
         color: #fff;
       }
 
+      .pw-source-card-tag {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--primary);
+        background: #dce8fb;
+        border-radius: 20px;
+        padding: 3px 10px;
+        letter-spacing: .3px;
+        white-space: nowrap;
+      }
+
+      .pw-calc .pw-source-card.is-selected .pw-source-card-tag {
+        background: rgba(11,91,215,.12);
+      }
+
       .pw-source-card-title {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 700;
         color: #1a1a2e;
         line-height: 1.3;
       }
 
       .pw-source-card-desc {
-        font-size: 13px;
+        font-size: 12.5px;
         color: #64748b;
-        line-height: 1.55;
+        line-height: 1.6;
       }
 
       .pw-radio-options {
@@ -689,8 +749,8 @@
         .pw-input, .pw-select, .pw-textarea { font-size: 16px; }
         .pw-actions-bottom { justify-content: stretch; }
         .pw-actions-bottom .pw-btn { flex: 1 1 0; }
-        .pw-calc .pw-source-card { flex: 1 1 100% !important; width: 100%; }
-        .pw-choice-cards { flex-wrap: wrap; }
+        .pw-calc .pw-source-card { flex: 1 1 140px !important; min-height: 200px; }
+        .pw-choice-cards { flex-wrap: wrap; justify-content: stretch; }
         #pw-payment-choice .pw-btn { flex-basis: 100%; width: 100%; }
         #pw-points-use, #pw-pay-later-code { max-width: none !important; width: 100% !important; }
         #btn-apply-points, #btn-validate-pay-later { width: 100%; }

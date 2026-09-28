@@ -1,4 +1,4 @@
-/* PW_BUILD_VERSION: 1.32.391 */
+/* PW_BUILD_VERSION: 1.32.392 */
 #pw-personalizados-app,
   #pw-personalizados-app * {
     box-sizing: border-box;
@@ -3602,8 +3602,10 @@
 #pw-personalizados-app .pw-me-service-card input[type=radio]{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
 #pw-personalizados-app .pw-me-service-card:has(input:checked){border-color:#963b00;background:#fff7ed}
 #pw-personalizados-app .pw-me-service-card:hover{border-color:#fbd38d;background:#fffbf5}
-#pw-personalizados-app .pw-msc-top{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
-#pw-personalizados-app .pw-msc-top .pw-service-badge{flex:0 0 100%;display:flex;justify-content:center;align-items:center;height:20px;margin-top:2px}
+#pw-personalizados-app .pw-msc-top{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+#pw-personalizados-app .pw-msc-logos{display:flex;align-items:center;gap:6px}
+#pw-personalizados-app .pw-msc-badges{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+#pw-personalizados-app .pw-msc-top .pw-service-badge{height:20px;display:inline-flex;align-items:center}
 #pw-personalizados-app .pw-carrier-logo.pw-msc-logo{height:20px;max-width:70px;object-fit:contain}
 #pw-personalizados-app .pw-msc-logo-placeholder{display:inline-block;width:22px;height:22px}
 #pw-personalizados-app .pw-msc-checkmark{margin-left:auto;font-size:14px;font-weight:700;color:#963b00;opacity:0;transition:opacity .12s}

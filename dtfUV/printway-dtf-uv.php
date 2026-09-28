@@ -21,7 +21,7 @@ if ( defined( 'PW_DTF_UV_MODULE_LOADED' ) ) {
 }
 define( 'PW_DTF_UV_MODULE_LOADED', true );
 
-define( 'PW_DTF_UV_VERSION', '1.0.0' );
+define( 'PW_DTF_UV_VERSION', '1.1.0' );
 define( 'PW_DTF_UV_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_DTF_UV_URL', plugin_dir_url( __FILE__ ) );
 define( 'PW_DTF_UV_SHORTCODE', 'printway_dtf_uv' );
@@ -81,6 +81,15 @@ function pw_dtf_uv_enqueue_assets() {
  * calculadora); CSS e JS chegam pelos arquivos enfileirados acima.
  */
 function pw_dtf_uv_shortcode( $atts = array() ) {
+	if ( '1' === get_option( 'pw_dtf_maintenance_mode' ) && ! current_user_can( 'manage_options' ) ) {
+		return
+			'<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;padding:48px 24px;text-align:center;background:#f8fafc;border-radius:16px;border:1px solid #e2e8f0;margin:24px 0">' .
+			'<div style="font-size:52px;margin:0 0 18px" role="img" aria-label="Em manutenção">🔧</div>' .
+			'<h2 style="margin:0 0 10px;font-size:22px;color:#1e293b;font-weight:700">Estamos em manutenção</h2>' .
+			'<p style="margin:0 0 8px;color:#64748b;font-size:15px;max-width:420px;line-height:1.6">A calculadora DTF UV está temporariamente indisponível enquanto realizamos melhorias. Voltamos em breve!</p>' .
+			'<p style="margin:16px 0 0;color:#94a3b8;font-size:13px">Em caso de dúvidas, entre em contato conosco pelo WhatsApp.</p>' .
+			'</div>';
+	}
 	$markup_path = PW_DTF_UV_DIR . 'templates/dtf-uv-markup.php';
 	if ( ! is_file( $markup_path ) ) {
 		return '<p>Calculadora DTF UV indisponível no momento.</p>';

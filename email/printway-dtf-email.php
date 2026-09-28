@@ -544,7 +544,7 @@ function pw_dtf_render_admin_dtf_uv_page() {
         }
     </style>';
 	echo '<nav class="nav-tab-wrapper" style="margin-bottom:20px">';
-	echo '<a class="nav-tab' . ( ! in_array( $tab, array( 'abandonados', 'usuarios', 'precos', 'pontos', 'email', 'emails', 'shortcode' ), true ) ? ' nav-tab-active' : '' ) . '" href="' . esc_url( $base_url ) . '">Pedidos</a>';
+	echo '<a class="nav-tab' . ( ! in_array( $tab, array( 'abandonados', 'usuarios', 'precos', 'pontos', 'email', 'emails', 'shortcode', 'config' ), true ) ? ' nav-tab-active' : '' ) . '" href="' . esc_url( $base_url ) . '">Pedidos</a>';
 	echo '<a class="nav-tab' . ( 'abandonados' === $tab ? ' nav-tab-active' : '' ) . '" href="' . esc_url( add_query_arg( 'aba', 'abandonados', $base_url ) ) . '">Abandonados</a>';
 	echo '<a class="nav-tab' . ( 'usuarios' === $tab ? ' nav-tab-active' : '' ) . '" href="' . esc_url( add_query_arg( 'aba', 'usuarios', $base_url ) ) . '">Usuários e Código liberação</a>';
 	echo '<a class="nav-tab' . ( 'precos' === $tab ? ' nav-tab-active' : '' ) . '" href="' . esc_url( add_query_arg( 'aba', 'precos', $base_url ) ) . '">Tabela de preços</a>';
@@ -552,6 +552,7 @@ function pw_dtf_render_admin_dtf_uv_page() {
 	echo '<a class="nav-tab' . ( 'email' === $tab ? ' nav-tab-active' : '' ) . '" href="' . esc_url( add_query_arg( 'aba', 'email', $base_url ) ) . '">Contato</a>';
 	echo '<a class="nav-tab' . ( 'emails' === $tab ? ' nav-tab-active' : '' ) . '" href="' . esc_url( add_query_arg( 'aba', 'emails', $base_url ) ) . '">E-mails</a>';
 	echo '<a class="nav-tab' . ( 'shortcode' === $tab ? ' nav-tab-active' : '' ) . '" href="' . esc_url( add_query_arg( 'aba', 'shortcode', $base_url ) ) . '">Shortcode</a>';
+	echo '<a class="nav-tab' . ( 'config' === $tab ? ' nav-tab-active' : '' ) . '" href="' . esc_url( add_query_arg( 'aba', 'config', $base_url ) ) . '" style="' . ( '1' === get_option( 'pw_dtf_maintenance_mode' ) ? 'font-weight:700;color:#b91c1c' : '' ) . '">⚙ Config' . ( '1' === get_option( 'pw_dtf_maintenance_mode' ) ? ' 🔧' : '' ) . '</a>';
 	echo '</nav>';
 
 	if ( 'abandonados' === $tab ) {
@@ -568,6 +569,8 @@ function pw_dtf_render_admin_dtf_uv_page() {
 		pw_dtf_render_admin_email_log_page( true );
 	} elseif ( 'shortcode' === $tab ) {
 		pw_dtf_render_admin_shortcode_page( true );
+	} elseif ( 'config' === $tab ) {
+		pw_dtf_render_admin_config_page( true );
 	} else {
 		pw_dtf_render_admin_orders_page( true );
 	}
@@ -770,6 +773,13 @@ function pw_dtf_process_admin_actions() {
 		), false );
 		pw_dtf_admin_redirect( 'pw-printway-dtf-uv', 'email_updated', 'email' );
 	}
+
+	if ( 'save_maintenance_mode' === $action ) {
+		check_admin_referer( 'pw_dtf_save_maintenance_mode' );
+		$enabled = ! empty( $_POST['maintenance_mode'] ) && '1' === $_POST['maintenance_mode'];
+		update_option( 'pw_dtf_maintenance_mode', $enabled ? '1' : '0', false );
+		pw_dtf_admin_redirect( 'pw-printway-dtf-uv', $enabled ? 'maintenance_mode_on' : 'maintenance_mode_off', 'config' );
+	}
 }
 
 function pw_dtf_admin_redirect( $page, $notice, $tab = '' ) {
@@ -817,13 +827,71 @@ function pw_dtf_render_admin_notice() {
 		'price_invalid'      => array( 'error', 'Informe pelo menos uma faixa válida para Cliente direto e Revenda.' ),
 		'price_write_failed' => array( 'error', 'Não foi possível gravar o arquivo precos.xml. Verifique a permissão de escrita da pasta dtfuv.' ),
 		'points_updated'     => array( 'success', 'Configurações de pontos DTF UV atualizadas.' ),
-		'email_updated'      => array( 'success', 'E-mail de recebimento DTF UV atualizado.' ),
-		'email_invalid'      => array( 'error', 'Informe um e-mail válido ou deixe o campo vazio para usar o e-mail padrão do WordPress.' ),
+		'email_updated'           => array( 'success', 'E-mail de recebimento DTF UV atualizado.' ),
+		'email_invalid'           => array( 'error', 'Informe um e-mail válido ou deixe o campo vazio para usar o e-mail padrão do WordPress.' ),
+		'maintenance_mode_on'     => array( 'success', '🔧 Modo manutenção ATIVADO. A calculadora está bloqueada para clientes.' ),
+		'maintenance_mode_off'    => array( 'success', '✅ Modo manutenção DESATIVADO. A calculadora está funcionando normalmente.' ),
 	);
 
 	if ( isset( $messages[ $notice ] ) ) {
 		echo '<div class="notice notice-' . esc_attr( $messages[ $notice ][0] ) . ' is-dismissible"><p>' . esc_html( $messages[ $notice ][1] ) . '</p></div>';
 	}
+}
+
+function pw_dtf_render_admin_config_page( $embedded = false ) {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+
+	$maintenance = '1' === get_option( 'pw_dtf_maintenance_mode' );
+	$page_url    = admin_url( 'admin.php?page=pw-printway-dtf-uv&aba=config' );
+
+	echo '<div style="max-width:680px">';
+	echo '<h2 style="margin:0 0 6px">Configurações da Calculadora DTF UV</h2>';
+	echo '<p style="color:#50575e;margin:0 0 24px">Controle o acesso à página <code>/calcular_dtf_uv/</code>.</p>';
+
+	/* ── Cartão de manutenção ── */
+	$card_border = $maintenance ? '2px solid #b91c1c' : '1px solid #ccd0d4';
+	$card_bg     = $maintenance ? '#fff5f5' : '#fff';
+	echo '<div style="background:' . $card_bg . ';border:' . $card_border . ';border-radius:8px;padding:24px 28px;margin:0 0 20px">';
+	echo '<div style="display:flex;align-items:center;gap:12px;margin:0 0 12px">';
+	echo '<span style="font-size:30px" role="img" aria-label="manutenção">🔧</span>';
+	echo '<div>';
+	echo '<strong style="font-size:15px;display:block;color:' . ( $maintenance ? '#b91c1c' : '#1d2327' ) . '">Modo manutenção</strong>';
+	echo '<span style="font-size:13px;color:#50575e">Quando ativado, somente <b>Administradores</b> conseguem acessar a calculadora. Clientes e visitantes veem uma tela de "Em manutenção".</span>';
+	echo '</div>';
+	echo '</div>';
+
+	/* Status atual */
+	if ( $maintenance ) {
+		echo '<div style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;margin:0 0 18px">● ATIVADO — calculadora bloqueada para clientes</div>';
+	} else {
+		echo '<div style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;margin:0 0 18px">● DESATIVADO — calculadora funcionando normalmente</div>';
+	}
+
+	echo '<form method="post" action="' . esc_url( $page_url ) . '">';
+	wp_nonce_field( 'pw_dtf_save_maintenance_mode' );
+	echo '<input type="hidden" name="pw_dtf_admin_action" value="save_maintenance_mode">';
+	echo '<input type="hidden" name="maintenance_mode" value="' . ( $maintenance ? '0' : '1' ) . '">';
+
+	if ( $maintenance ) {
+		echo '<button type="submit" class="button button-primary" style="background:#166534;border-color:#166534;font-size:14px;height:36px;padding:0 20px">✅ Desativar manutenção</button>';
+		echo '<span style="margin-left:12px;font-size:12px;color:#64748b">A calculadora voltará a funcionar para todos os usuários.</span>';
+	} else {
+		echo '<button type="submit" class="button button-primary" style="background:#b91c1c;border-color:#b91c1c;font-size:14px;height:36px;padding:0 20px">🔧 Ativar manutenção</button>';
+		echo '<span style="margin-left:12px;font-size:12px;color:#64748b">Somente administradores poderão acessar a calculadora.</span>';
+	}
+
+	echo '</form>';
+	echo '</div>'; /* /card */
+
+	/* Dica */
+	echo '<div style="background:#f0f6fc;border-left:4px solid #2271b1;padding:12px 16px;border-radius:0 6px 6px 0;font-size:13px;color:#1d2327">';
+	echo '<strong>Como funciona:</strong> ao ativar, o shortcode <code>[printway_dtf_uv]</code> exibe uma mensagem de manutenção para qualquer visitante ou cliente logado. ';
+	echo 'Administradores do WordPress continuam vendo a calculadora normalmente para testar. A configuração é salva instantaneamente no banco de dados do WordPress.';
+	echo '</div>';
+
+	echo '</div>'; /* /max-width */
 }
 
 function pw_dtf_render_admin_orders_page( $embedded = false ) {

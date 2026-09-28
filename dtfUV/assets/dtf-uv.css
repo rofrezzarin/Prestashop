@@ -157,7 +157,7 @@
       .pw-choice-cards {
         display: flex;
         gap: 20px;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         margin-top: 8px;
         justify-content: center;
       }
@@ -749,8 +749,6 @@
         .pw-input, .pw-select, .pw-textarea { font-size: 16px; }
         .pw-actions-bottom { justify-content: stretch; }
         .pw-actions-bottom .pw-btn { flex: 1 1 0; }
-        .pw-calc .pw-source-card { flex: 1 1 100% !important; max-width: 100% !important; min-height: 160px; }
-        .pw-choice-cards { flex-wrap: wrap; justify-content: stretch; }
         #pw-payment-choice .pw-btn { flex-basis: 100%; width: 100%; }
         #pw-points-use, #pw-pay-later-code { max-width: none !important; width: 100% !important; }
         #btn-apply-points, #btn-validate-pay-later { width: 100%; }
@@ -764,4 +762,8 @@
         .pw-images-fields { grid-template-columns:1fr; }
         .pw-images-fields .pw-images-calc-action { grid-column:auto; }
         .pw-images-fields .pw-btn { width:100%; }
+      }
+
+      @media (max-width: 460px) {
+        .pw-calc .pw-source-card { flex: 1 1 100% !important; max-width: 100% !important; min-height: 160px; }
       }

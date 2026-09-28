@@ -776,8 +776,27 @@ function pw_dtf_process_admin_actions() {
 
 	if ( 'save_maintenance_mode' === $action ) {
 		check_admin_referer( 'pw_dtf_save_maintenance_mode' );
-		$enabled = ! empty( $_POST['maintenance_mode'] ) && '1' === $_POST['maintenance_mode'];
+		$enabled   = ! empty( $_POST['maintenance_mode'] );
+		$until_raw = isset( $_POST['maintenance_until'] ) ? sanitize_text_field( wp_unslash( $_POST['maintenance_until'] ) ) : '';
+
+		$until = 0;
+		if ( '' !== $until_raw ) {
+			$tz = wp_timezone();
+			$dt = DateTimeImmutable::createFromFormat( 'Y-m-d\TH:i', $until_raw, $tz );
+			if ( $dt ) {
+				$until = $dt->getTimestamp();
+			}
+		}
+
+		/* Se manutenção está ativa mas a previsão já passou, desativa automaticamente. */
+		if ( $enabled && $until > 0 && time() >= $until ) {
+			$enabled = false;
+			$until   = 0;
+		}
+
 		update_option( 'pw_dtf_maintenance_mode', $enabled ? '1' : '0', false );
+		update_option( 'pw_dtf_maintenance_until', $until, false );
+
 		pw_dtf_admin_redirect( 'pw-printway-dtf-uv', $enabled ? 'maintenance_mode_on' : 'maintenance_mode_off', 'config' );
 	}
 }
@@ -844,51 +863,107 @@ function pw_dtf_render_admin_config_page( $embedded = false ) {
 	}
 
 	$maintenance = '1' === get_option( 'pw_dtf_maintenance_mode' );
-	$page_url    = admin_url( 'admin.php?page=pw-printway-dtf-uv&aba=config' );
+	$until       = (int) get_option( 'pw_dtf_maintenance_until', 0 );
 
-	echo '<div style="max-width:680px">';
+	/* Auto-desativação server-side ao abrir a tela. */
+	if ( $maintenance && $until > 0 && time() >= $until ) {
+		$maintenance = false;
+		update_option( 'pw_dtf_maintenance_mode', '0', false );
+		update_option( 'pw_dtf_maintenance_until', 0, false );
+		$until = 0;
+	}
+
+	/* Valor para o campo datetime-local (timezone do WordPress). */
+	$until_input = $until > 0 ? wp_date( 'Y-m-d\TH:i', $until ) : '';
+
+	/* Tempo restante em texto (para exibição estática na tela admin). */
+	$remaining_text = '';
+	if ( $maintenance && $until > 0 ) {
+		$diff = $until - time();
+		if ( $diff > 0 ) {
+			$d = floor( $diff / 86400 );
+			$h = floor( ( $diff % 86400 ) / 3600 );
+			$m = floor( ( $diff % 3600 ) / 60 );
+			$parts = array();
+			if ( $d > 0 ) { $parts[] = $d . ( 1 === $d ? ' dia' : ' dias' ); }
+			if ( $h > 0 ) { $parts[] = $h . ( 1 === $h ? ' hora' : ' horas' ); }
+			if ( $m > 0 || $h > 0 || $d > 0 ) { $parts[] = $m . ( 1 === $m ? ' minuto' : ' minutos' ); }
+			$remaining_text = implode( ', ', $parts );
+		}
+	}
+
+	$card_border = $maintenance ? '2px solid #b91c1c' : '1px solid #ccd0d4';
+	$card_bg     = $maintenance ? '#fff5f5' : '#fff';
+
+	echo '<div style="max-width:700px">';
 	echo '<h2 style="margin:0 0 6px">Configurações da Calculadora DTF UV</h2>';
 	echo '<p style="color:#50575e;margin:0 0 24px">Controle o acesso à página <code>/calcular_dtf_uv/</code>.</p>';
 
-	/* ── Cartão de manutenção ── */
-	$card_border = $maintenance ? '2px solid #b91c1c' : '1px solid #ccd0d4';
-	$card_bg     = $maintenance ? '#fff5f5' : '#fff';
-	echo '<div style="background:' . $card_bg . ';border:' . $card_border . ';border-radius:8px;padding:24px 28px;margin:0 0 20px">';
-	echo '<div style="display:flex;align-items:center;gap:12px;margin:0 0 12px">';
+	/* ── Cartão principal ── */
+	echo '<div style="background:' . esc_attr( $card_bg ) . ';border:' . esc_attr( $card_border ) . ';border-radius:8px;padding:24px 28px;margin:0 0 20px">';
+
+	echo '<div style="display:flex;align-items:center;gap:12px;margin:0 0 16px">';
 	echo '<span style="font-size:30px" role="img" aria-label="manutenção">🔧</span>';
 	echo '<div>';
 	echo '<strong style="font-size:15px;display:block;color:' . ( $maintenance ? '#b91c1c' : '#1d2327' ) . '">Modo manutenção</strong>';
-	echo '<span style="font-size:13px;color:#50575e">Quando ativado, somente <b>Administradores</b> conseguem acessar a calculadora. Clientes e visitantes veem uma tela de "Em manutenção".</span>';
-	echo '</div>';
-	echo '</div>';
+	echo '<span style="font-size:13px;color:#50575e">Quando ativado, somente <b>Administradores</b> conseguem acessar a calculadora. Clientes veem tela de manutenção.</span>';
+	echo '</div></div>';
 
 	/* Status atual */
 	if ( $maintenance ) {
-		echo '<div style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;margin:0 0 18px">● ATIVADO — calculadora bloqueada para clientes</div>';
+		echo '<div style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;margin:0 0 20px">● ATIVADO — calculadora bloqueada para clientes</div>';
+		if ( $remaining_text ) {
+			echo '<div style="display:flex;align-items:center;gap:8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:8px 14px;font-size:13px;color:#9a3412;margin:-12px 0 20px">';
+			echo '<span style="font-size:16px">⏱</span><span>Tempo restante: <strong>' . esc_html( $remaining_text ) . '</strong></span>';
+			echo '</div>';
+		}
 	} else {
-		echo '<div style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;margin:0 0 18px">● DESATIVADO — calculadora funcionando normalmente</div>';
+		echo '<div style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;margin:0 0 20px">● DESATIVADO — calculadora funcionando normalmente</div>';
 	}
 
-	echo '<form method="post" action="' . esc_url( $page_url ) . '">';
+	/* ── Formulário único ── */
+	echo '<form method="post">';
 	wp_nonce_field( 'pw_dtf_save_maintenance_mode' );
 	echo '<input type="hidden" name="pw_dtf_admin_action" value="save_maintenance_mode">';
-	echo '<input type="hidden" name="maintenance_mode" value="' . ( $maintenance ? '0' : '1' ) . '">';
 
-	if ( $maintenance ) {
-		echo '<button type="submit" class="button button-primary" style="background:#166534;border-color:#166534;font-size:14px;height:36px;padding:0 20px">✅ Desativar manutenção</button>';
-		echo '<span style="margin-left:12px;font-size:12px;color:#64748b">A calculadora voltará a funcionar para todos os usuários.</span>';
-	} else {
-		echo '<button type="submit" class="button button-primary" style="background:#b91c1c;border-color:#b91c1c;font-size:14px;height:36px;padding:0 20px">🔧 Ativar manutenção</button>';
-		echo '<span style="margin-left:12px;font-size:12px;color:#64748b">Somente administradores poderão acessar a calculadora.</span>';
+	/* Checkbox ativar/desativar */
+	echo '<table class="form-table" style="margin:0">';
+	echo '<tr>';
+	echo '<th scope="row" style="width:200px;padding:8px 10px 8px 0;vertical-align:top"><label for="pw-maint-toggle" style="font-weight:600">Manutenção ativa</label></th>';
+	echo '<td style="padding:4px 0">';
+	echo '<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer">';
+	echo '<input type="checkbox" id="pw-maint-toggle" name="maintenance_mode" value="1"' . ( $maintenance ? ' checked' : '' ) . ' style="width:18px;height:18px">';
+	echo '<span style="font-size:13px">Ativar bloqueio para clientes e visitantes</span>';
+	echo '</label>';
+	echo '</td></tr>';
+
+	/* Campo de previsão de retorno */
+	echo '<tr>';
+	echo '<th scope="row" style="padding:12px 10px 8px 0;vertical-align:top"><label for="pw-maint-until" style="font-weight:600">Previsão de retorno</label></th>';
+	echo '<td style="padding:8px 0">';
+	echo '<input type="datetime-local" id="pw-maint-until" name="maintenance_until" value="' . esc_attr( $until_input ) . '" style="font-size:14px;padding:5px 8px">';
+	echo '<p class="description" style="margin:6px 0 0;font-size:12px;color:#50575e">Opcional. Se definida, a manutenção será encerrada automaticamente nessa data e hora (fuso horário do site). ';
+	echo 'Enquanto o cliente estiver na tela de manutenção, um contador regressivo será exibido e a calculadora abrirá sozinha ao chegar no horário.</p>';
+	if ( $maintenance && $until > 0 ) {
+		echo '<p style="margin:8px 0 0;font-size:12px;color:#9a3412"><strong>Programado para:</strong> ' . esc_html( wp_date( 'd/m/Y \à\s H:i', $until ) ) . '</p>';
 	}
+	echo '</td></tr>';
+	echo '</table>';
 
+	echo '<div style="margin:18px 0 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap">';
+	echo '<button type="submit" class="button button-primary" style="font-size:14px;height:36px;padding:0 22px">💾 Salvar configurações</button>';
+	echo '<a href="' . esc_url( site_url( '/calcular_dtf_uv/' ) ) . '" target="_blank" style="font-size:13px;color:#2271b1">↗ Ver página da calculadora</a>';
+	echo '</div>';
 	echo '</form>';
+
 	echo '</div>'; /* /card */
 
-	/* Dica */
+	/* ── Dica ── */
 	echo '<div style="background:#f0f6fc;border-left:4px solid #2271b1;padding:12px 16px;border-radius:0 6px 6px 0;font-size:13px;color:#1d2327">';
-	echo '<strong>Como funciona:</strong> ao ativar, o shortcode <code>[printway_dtf_uv]</code> exibe uma mensagem de manutenção para qualquer visitante ou cliente logado. ';
-	echo 'Administradores do WordPress continuam vendo a calculadora normalmente para testar. A configuração é salva instantaneamente no banco de dados do WordPress.';
+	echo '<strong>Como funciona:</strong> ao ativar, o shortcode <code>[printway_dtf_uv]</code> exibe a tela de manutenção para clientes. ';
+	echo 'Administradores sempre veem a calculadora normalmente (para testar). ';
+	echo 'Com a <em>previsão de retorno</em> definida, o cliente vê um contador regressivo que se atualiza a cada segundo, ';
+	echo 'e quando o horário chega a calculadora abre automaticamente para ele, mesmo que você esqueça de desativar.';
 	echo '</div>';
 
 	echo '</div>'; /* /max-width */

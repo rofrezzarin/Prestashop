@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Envio de pedidos
  * Description: Recebe os pedidos da calculadora DTF UV e envia os dados e anexos pelo wp_mail().
- * Version: 2.4.19
+ * Version: 2.4.20
  * Author: PrintWay
  */
 
@@ -18,6 +18,17 @@ const PW_DTF_CURRENT_USER_ACTION = 'printway_dtf_get_current_user_profile';
 const PW_DTF_NONCE_ACTION = 'printway_dtf_send_order';
 const PW_DTF_MAX_FILE_SIZE = 10485760;
 const PW_DTF_PRINT_WIDTH_CM = 28;
+
+/** Oculta a barra de administração do WordPress para usuários que não são administradores nem colaboradores. */
+add_filter( 'show_admin_bar', function ( $show ) {
+	if ( ! is_user_logged_in() ) {
+		return false;
+	}
+	$user  = wp_get_current_user();
+	$roles = array_map( 'sanitize_key', (array) $user->roles );
+	$allowed = array( 'administrator', 'colaborador', 'collaborator', 'contributor' );
+	return (bool) array_intersect( $allowed, $roles );
+} );
 
 function pw_dtf_disable_calculator_cache() {
 	if ( is_admin() || ! is_page( 'calcular_dtf_uv' ) ) {

@@ -21,7 +21,7 @@ if ( defined( 'PW_DTF_UV_MODULE_LOADED' ) ) {
 }
 define( 'PW_DTF_UV_MODULE_LOADED', true );
 
-define( 'PW_DTF_UV_VERSION', '1.2.0' );
+define( 'PW_DTF_UV_VERSION', '1.3.0' );
 define( 'PW_DTF_UV_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_DTF_UV_URL', plugin_dir_url( __FILE__ ) );
 define( 'PW_DTF_UV_SHORTCODE', 'printway_dtf_uv' );
@@ -81,7 +81,7 @@ function pw_dtf_uv_enqueue_assets() {
  * calculadora); CSS e JS chegam pelos arquivos enfileirados acima.
  */
 function pw_dtf_uv_shortcode( $atts = array() ) {
-	if ( '1' === get_option( 'pw_dtf_maintenance_mode' ) && ! current_user_can( 'manage_options' ) ) {
+	if ( '1' === get_option( 'pw_dtf_maintenance_mode' ) && ! current_user_can( 'manage_options' ) && '1' !== get_user_meta( get_current_user_id(), '_pw_dtf_maintenance_bypass', true ) ) {
 		$until = (int) get_option( 'pw_dtf_maintenance_until', 0 );
 
 		/* Auto-desativação: se a previsão já passou, desliga manutenção. */

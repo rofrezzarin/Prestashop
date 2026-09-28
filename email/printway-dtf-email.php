@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Envio de pedidos
  * Description: Recebe os pedidos da calculadora DTF UV e envia os dados e anexos pelo wp_mail().
- * Version: 2.4.16
+ * Version: 2.4.17
  * Author: PrintWay
  */
 
@@ -512,8 +512,9 @@ function pw_dtf_render_admin_dtf_uv_page() {
         .pw-dtf-orders-table th:nth-child(1){width:3%}.pw-dtf-orders-table th:nth-child(2){width:13%}.pw-dtf-orders-table th:nth-child(3){width:12%}.pw-dtf-orders-table th:nth-child(4){width:10%}.pw-dtf-orders-table th:nth-child(5){width:12%}.pw-dtf-orders-table th:nth-child(6){width:12%}.pw-dtf-orders-table th:nth-child(7){width:8%}.pw-dtf-orders-table th:nth-child(8){width:11%}.pw-dtf-orders-table th:nth-child(9){width:19%}
         .pw-dtf-orders-table select{width:100%;max-width:100%;box-sizing:border-box}
         .pw-dtf-users-table{width:100%;min-width:1000px;table-layout:fixed}
-        .pw-dtf-users-table th:nth-child(1){width:14%}.pw-dtf-users-table th:nth-child(2){width:7%}.pw-dtf-users-table th:nth-child(3){width:24%}.pw-dtf-users-table th:nth-child(4){width:19%}.pw-dtf-users-table th:nth-child(5){width:18%}.pw-dtf-users-table th:nth-child(6){width:18%}
+        .pw-dtf-users-table th:nth-child(1){width:13%}.pw-dtf-users-table th:nth-child(2){width:6%}.pw-dtf-users-table th:nth-child(3){width:21%}.pw-dtf-users-table th:nth-child(4){width:17%}.pw-dtf-users-table th:nth-child(5){width:12%}.pw-dtf-users-table th:nth-child(6){width:18%}.pw-dtf-users-table th:nth-child(7){width:13%}
         .pw-dtf-users-table select,.pw-dtf-users-table input{width:100%;max-width:100%;box-sizing:border-box}
+        .pw-dtf-users-table th:nth-child(7),.pw-dtf-users-table td:nth-child(7){text-align:center}
         .pw-dtf-price-section{margin:22px 0;padding:16px;background:#fff;border:1px solid #ccd0d4;border-radius:4px}
         .pw-dtf-price-section h3{margin-top:0}.pw-dtf-price-table{width:100%;max-width:900px}
         .pw-dtf-price-table input{width:100%;box-sizing:border-box}.pw-dtf-price-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
@@ -691,6 +692,15 @@ function pw_dtf_process_admin_actions() {
 
 			if ( $user_id !== get_current_user_id() || 'administrator' === $role || ! current_user_can( 'administrator' ) ) {
 				$user->set_role( $role );
+			}
+
+			$bypass_post = isset( $_POST['maintenance_bypass'] ) && is_array( $_POST['maintenance_bypass'] )
+				? $_POST['maintenance_bypass']
+				: array();
+			if ( ! empty( $bypass_post[ $user_id ] ) ) {
+				update_user_meta( $user_id, '_pw_dtf_maintenance_bypass', '1' );
+			} else {
+				delete_user_meta( $user_id, '_pw_dtf_maintenance_bypass' );
 			}
 		}
 
@@ -1290,18 +1300,20 @@ function pw_dtf_render_admin_users_page( $embedded = false ) {
 	wp_nonce_field( 'pw_dtf_update_all_user_access' );
 	echo '<input type="hidden" name="pw_dtf_admin_action" value="update_all_user_access">';
 	echo '<p><button type="submit" class="button button-primary pw-dtf-save-all"><span class="dashicons dashicons-saved"></span>Salvar todos os usuários</button></p>';
-	echo '<div class="pw-dtf-orders-wrap"><table class="widefat fixed striped pw-dtf-users-table"><thead><tr><th>Usuário</th><th>ID</th><th>E-mail</th><th>Função</th><th>Pontos atuais</th><th>Código liberação (Pagar depois)</th></tr></thead><tbody>';
+	echo '<div class="pw-dtf-orders-wrap"><table class="widefat fixed striped pw-dtf-users-table"><thead><tr><th>Usuário</th><th>ID</th><th>E-mail</th><th>Função</th><th>Pontos atuais</th><th>Código liberação (Pagar depois)</th><th>Permitir em Manutenção</th></tr></thead><tbody>';
 
 	foreach ( $users as $user ) {
 		$current_role = ! empty( $user->roles ) ? reset( $user->roles ) : '';
 		$code = pw_dtf_get_user_unlock_code( (int) $user->ID );
 		$points = pw_dtf_get_user_points_balance( (int) $user->ID );
+		$bypass = '1' === get_user_meta( (int) $user->ID, '_pw_dtf_maintenance_bypass', true );
 		echo '<tr><td>' . esc_html( $user->user_login ) . '</td><td>' . esc_html( $user->ID ) . '</td><td>' . esc_html( $user->user_email ) . '</td><td>';
 		echo '<select name="user_roles[' . esc_attr( $user->ID ) . ']">';
 		foreach ( $roles as $slug => $role_data ) {
 			echo '<option value="' . esc_attr( $slug ) . '"' . selected( $current_role, $slug, false ) . '>' . esc_html( translate_user_role( $role_data['name'] ) ) . '</option>';
 		}
-		echo '</select></td><td>' . esc_html( number_format_i18n( $points, 0 ) ) . '</td><td><input type="text" class="regular-text" name="unlock_codes[' . esc_attr( $user->ID ) . ']" value="' . esc_attr( $code ) . '" autocomplete="off"></td></tr>';
+		echo '</select></td><td>' . esc_html( number_format_i18n( $points, 0 ) ) . '</td><td><input type="text" class="regular-text" name="unlock_codes[' . esc_attr( $user->ID ) . ']" value="' . esc_attr( $code ) . '" autocomplete="off"></td>';
+		echo '<td><input type="checkbox" name="maintenance_bypass[' . esc_attr( $user->ID ) . ']" value="1"' . checked( $bypass, true, false ) . '></td></tr>';
 	}
 
 	echo '</tbody></table></div></form>';

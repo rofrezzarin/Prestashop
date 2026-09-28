@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.389
+// PW_BUILD_VERSION: 1.32.390
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -627,6 +627,7 @@
   let versionCheckTimer = null;
   let mlNotifyTimer = null;
   let orderNotifyTimer = null;
+  let ordersViewFingerprint = ''; // snapshot dos pedidos visíveis no filtro atual
   let nfeNotifyTimer = null;
   let newOrderNotifyList = [];
   let newOrderNotifyIndex = 0;
@@ -3032,6 +3033,29 @@
     }
   }
 
+  // Lê o storage do servidor sem sobrescrever SERVER_STORAGE local (usado para
+  // comparar fingerprints sem afetar a tela atual do usuário).
+  async function peekFreshStorageData() {
+    if (!SERVER.ajaxUrl || !SERVER.nonce) return null;
+    try {
+      const form = new URLSearchParams();
+      form.append('action', 'pw_personalizados_refresh_storage');
+      form.append('nonce', SERVER.nonce);
+      const endpoint = new URL(SERVER.ajaxUrl, window.location.href);
+      if (endpoint.origin !== window.location.origin) return null;
+      const response = await fetch(endpoint.href, { method: 'POST', credentials: 'same-origin', cache: 'no-store', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result || !result.success || !result.data || !result.data.storage) return null;
+      return result.data.storage;
+    } catch (e) { return null; }
+  }
+
+  // Gera uma string de fingerprint para os pedidos filtrados — qualquer
+  // alteração em status, valor ou data de modificação muda o fingerprint.
+  function buildOrdersViewFingerprint(filteredRows) {
+    return filteredRows.map(o => String(o.orderNumber) + '|' + String(o.status || '') + '|' + String(o.lastChange || o.createdDate || '')).join('\n');
+  }
+
   async function createOrderOnServer(order) {
     if (!SERVER.ajaxUrl || !SERVER.nonce) return null;
     const form = new URLSearchParams();
@@ -3863,6 +3887,36 @@
         }
       } else if (refreshButton) {
         refreshButton.dataset.tooltip = 'Atualizar a lista com os pedidos mais recentes';
+      }
+      // Verifica alterações nos campos dos pedidos visíveis no filtro atual —
+      // só quando o usuário está na tela de relatório e já existe um snapshot.
+      // Não interfere se o botão já pisca por pedidos novos.
+      if (!refreshShouldBlink && ordersViewFingerprint && $('#pw-orders-consult-search')) {
+        const freshStorage = await peekFreshStorageData();
+        if (freshStorage) {
+          const freshOrders = Array.isArray(freshStorage[STORAGE.orders]) ? freshStorage[STORAGE.orders] : [];
+          const q = normalize($('#pw-orders-consult-search').value);
+          const allDt = $('#pw-orders-all-dates').checked;
+          const dt0 = $('#pw-orders-date-start').value;
+          const dt1 = $('#pw-orders-date-end').value;
+          const hf = $('#pw-orders-status-filter').value || 'open';
+          const sitsF = ensureOrdersSituationFilters();
+          const origsF = ensureOrdersOriginFilters();
+          const freshFiltered = freshOrders.filter(order => {
+            const searchable = [order.orderNumber, order.marketplaceOrderNumber, order.client && order.client.name, order.client && order.client.phone, order.client && order.client.document, order.status, order.origin].join(' ');
+            const matchesText = !q || normalize(searchable).includes(q);
+            const date = String(order.createdDate || '').slice(0, 10);
+            const matchesPeriod = allDt || ((!dt0 || date >= dt0) && (!dt1 || date <= dt1));
+            const matchesHistory = hf === 'all' || (hf === 'finalized' ? isOrderFinalized(order) : !isOrderFinalized(order));
+            const matchesSituation = sitsF.length === 0 || sitsF.includes(order.status || 'Criação da arte');
+            const matchesOrigin = origsF.length === 0 || origsF.some(name => normalize(name) === normalize(order.origin || (order.client && order.client.origin) || 'Normal'));
+            return matchesText && matchesPeriod && matchesHistory && matchesSituation && matchesOrigin;
+          });
+          if (buildOrdersViewFingerprint(freshFiltered) !== ordersViewFingerprint && refreshButton) {
+            refreshButton.classList.add('pw-ml-notify-blink');
+            refreshButton.dataset.tooltip = 'Dados alterados por outro usuário — clique para atualizar';
+          }
+        }
       }
     } catch (error) {
       // Falha silenciosa: a próxima verificação tenta de novo sozinha.
@@ -11154,6 +11208,10 @@
     const ok = await refreshSharedStorageSnapshot();
     if (ok) renderOrdersConsultation();
     markOrderNotificationsSeen();
+    // Limpa imediatamente o blink de alteração de campos (o fingerprint já foi
+    // atualizado por renderOrdersConsultation acima).
+    const refreshBtn = $('#pw-orders-refresh');
+    if (refreshBtn) refreshBtn.classList.remove('pw-ml-notify-blink');
     return ok;
   }
 
@@ -11180,6 +11238,7 @@
     }).sort((multiSortState.orders || []).length
       ? compareByMultiSort('orders', ordersSortGetters)
       : (a, b) => (Number(b.orderNumber) || 0) - (Number(a.orderNumber) || 0) || String(b.lastChange || b.createdDate || '').localeCompare(String(a.lastChange || a.createdDate || '')));
+    ordersViewFingerprint = buildOrdersViewFingerprint(rows);
     filteredRecordIds.order = rows.map(order => String(order.orderNumber));
     const pageRows = rows.slice((paginationState.orders - 1) * PAGE_SIZE, paginationState.orders * PAGE_SIZE);
     const body = $('#pw-orders-consult-body');

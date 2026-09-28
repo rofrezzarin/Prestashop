@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.387
+// PW_BUILD_VERSION: 1.32.388
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -3994,7 +3994,7 @@
     if (type === 'success' && pendingStorageWrites.size) {
       _renderChecklist(
         [ { label: 'Aguardando confirmação do servidor…', done: false },
-          { label: text, done: false } ],
+          { label: 'Verificando salvamento…', done: false } ],
         'info', false
       );
       waitForStorageWrites().then(saved => {

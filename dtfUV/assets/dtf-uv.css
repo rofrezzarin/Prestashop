@@ -154,15 +154,71 @@
         justify-content: center;
       }
 
-      #choose-pdf,
-      #choose-manual {
-        flex: 0 1 280px;
-        width: 280px;
-        max-width: 100%;
-        min-height: 48px;
-        display: inline-flex;
+      .pw-choice-cards {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+      }
+
+      .pw-source-card {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        flex: 0 1 230px;
+        min-height: 148px;
+        padding: 18px 20px;
+        border: 2px solid #dce8fb;
+        border-radius: 14px;
+        background: var(--bg);
+        cursor: pointer;
+        text-align: left;
+        font-family: inherit;
+        transition: border-color .17s, box-shadow .17s, background .17s;
+        box-sizing: border-box;
+      }
+
+      .pw-source-card:hover {
+        border-color: #93b4f3;
+        background: #f3f7ff;
+      }
+
+      .pw-source-card.is-selected {
+        border-color: var(--primary);
+        background: #eef4ff;
+        box-shadow: 0 0 0 1px var(--primary);
+      }
+
+      .pw-source-card-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 11px;
+        background: #dce8fb;
+        display: flex;
         align-items: center;
         justify-content: center;
+        color: var(--primary);
+        flex-shrink: 0;
+        transition: background .17s, color .17s;
+      }
+
+      .pw-source-card.is-selected .pw-source-card-icon {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .pw-source-card-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1a1a2e;
+        line-height: 1.3;
+      }
+
+      .pw-source-card-desc {
+        font-size: 13px;
+        color: #64748b;
+        line-height: 1.55;
       }
 
       .pw-radio-options {
@@ -625,7 +681,8 @@
         .pw-input, .pw-select, .pw-textarea { font-size: 16px; }
         .pw-actions-bottom { justify-content: stretch; }
         .pw-actions-bottom .pw-btn { flex: 1 1 0; }
-        #choose-pdf, #choose-manual, #pw-payment-choice .pw-btn { flex-basis: 100%; width: 100%; }
+        .pw-source-card { flex: 1 1 100%; width: 100%; }
+        #pw-payment-choice .pw-btn { flex-basis: 100%; width: 100%; }
         #pw-points-use, #pw-pay-later-code { max-width: none !important; width: 100% !important; }
         #btn-apply-points, #btn-validate-pay-later { width: 100%; }
         #pw-points-area > div[style*="display:flex"], #pw-pay-later-area > div[style*="display:flex"] { display: block !important; }

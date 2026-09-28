@@ -2992,9 +2992,17 @@
        JÁ TENHO PDF
        ======================================================== */
 
-        document
-          .getElementById("choose-pdf")
-          .addEventListener("click", function () {
+        var cardPdf    = document.getElementById("choose-pdf");
+        var cardManual = document.getElementById("choose-manual");
+
+        function selectSourceCard(selected, other) {
+          if (selected) selected.classList.add("is-selected");
+          if (other)    other.classList.remove("is-selected");
+        }
+
+        cardPdf.addEventListener("click", function () {
+            selectSourceCard(cardPdf, cardManual);
+
             pdfArea.style.display = "block";
 
             manualArea.style.display = "none";
@@ -3014,9 +3022,9 @@
        MANUAL
        ======================================================== */
 
-        document
-          .getElementById("choose-manual")
-          .addEventListener("click", function () {
+        cardManual.addEventListener("click", function () {
+            selectSourceCard(cardManual, cardPdf);
+
             manualArea.style.display = "block";
 
             pdfArea.style.display = "none";

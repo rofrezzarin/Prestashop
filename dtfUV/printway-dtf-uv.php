@@ -21,7 +21,7 @@ if ( defined( 'PW_DTF_UV_MODULE_LOADED' ) ) {
 }
 define( 'PW_DTF_UV_MODULE_LOADED', true );
 
-define( 'PW_DTF_UV_VERSION', '1.3.0' );
+define( 'PW_DTF_UV_VERSION', '1.4.0' );
 define( 'PW_DTF_UV_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_DTF_UV_URL', plugin_dir_url( __FILE__ ) );
 define( 'PW_DTF_UV_SHORTCODE', 'printway_dtf_uv' );
@@ -129,14 +129,39 @@ function pw_dtf_uv_shortcode( $atts = array() ) {
 					'})();</script>';
 			}
 
+			$access_poll = '';
+			if ( is_user_logged_in() ) {
+				$access_nonce = wp_create_nonce( 'pw_dtf_check_access' );
+				$ajax_url     = esc_url( admin_url( 'admin-ajax.php' ) );
+				$access_poll  =
+					'<script>(function(){' .
+					'var nonce=' . wp_json_encode( $access_nonce ) . ';' .
+					'var url=' . wp_json_encode( $ajax_url ) . ';' .
+					'function check(){' .
+					'var x=new XMLHttpRequest();' .
+					'x.open("POST",url,true);' .
+					'x.setRequestHeader("Content-Type","application/x-www-form-urlencoded");' .
+					'x.onreadystatechange=function(){' .
+					'if(x.readyState!==4)return;' .
+					'try{var d=JSON.parse(x.responseText);if(d.success&&d.data&&d.data.access){location.reload();return;}}catch(e){}' .
+					'setTimeout(check,5000);' .
+					'};' .
+					'x.onerror=function(){setTimeout(check,5000);};' .
+					'x.send("action=pw_dtf_check_maintenance_access&_ajax_nonce="+encodeURIComponent(nonce));' .
+					'}' .
+					'setTimeout(check,5000);' .
+					'})();</script>';
+			}
+
 			return
 				'<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;padding:48px 24px;text-align:center;background:#f8fafc;border-radius:16px;border:1px solid #e2e8f0;margin:24px 0">' .
 				'<div style="font-size:52px;margin:0 0 18px" role="img" aria-label="Em manutenção">🔧</div>' .
 				'<h2 style="margin:0 0 10px;font-size:22px;color:#1e293b;font-weight:700">Estamos em manutenção</h2>' .
 				'<p style="margin:0 0 8px;color:#64748b;font-size:15px;max-width:420px;line-height:1.6">A calculadora DTF UV está temporariamente indisponível enquanto realizamos melhorias.</p>' .
 				$eta_block .
-				'<p style="margin:' . ( $until > 0 ? '16px' : '16px' ) . ' 0 0;color:#94a3b8;font-size:13px">Em caso de dúvidas, entre em contato conosco pelo WhatsApp.</p>' .
-				'</div>';
+				'<p style="margin:16px 0 0;color:#94a3b8;font-size:13px">Em caso de dúvidas, entre em contato conosco pelo WhatsApp.</p>' .
+				'</div>' .
+				$access_poll;
 		}
 	}
 
@@ -149,3 +174,17 @@ function pw_dtf_uv_shortcode( $atts = array() ) {
 	return ob_get_clean();
 }
 add_shortcode( PW_DTF_UV_SHORTCODE, 'pw_dtf_uv_shortcode' );
+
+/**
+ * AJAX: verifica se o usuário atual já pode acessar a calculadora.
+ * Usado pelo polling JS da tela de manutenção para recarregar
+ * automaticamente assim que o admin liberar o acesso.
+ */
+function pw_dtf_ajax_check_maintenance_access() {
+	check_ajax_referer( 'pw_dtf_check_access' );
+	$has_access = '1' !== get_option( 'pw_dtf_maintenance_mode' )
+		|| current_user_can( 'manage_options' )
+		|| '1' === get_user_meta( get_current_user_id(), '_pw_dtf_maintenance_bypass', true );
+	wp_send_json_success( array( 'access' => $has_access ) );
+}
+add_action( 'wp_ajax_pw_dtf_check_maintenance_access', 'pw_dtf_ajax_check_maintenance_access' );

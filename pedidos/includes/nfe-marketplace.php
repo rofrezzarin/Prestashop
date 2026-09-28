@@ -230,7 +230,8 @@ function pw_personalizados_nfe_generate_pdf() {
 			$sub   = $qty * $price;
 			$total_items += $sub;
 			// Truncar descricao para caber na coluna (aprox 110mm a 8pt ~= 70 chars)
-			if ( mb_strlen( $desc ) > 70 ) { $desc = mb_substr( $desc, 0, 67 ) . '...'; }
+			// Usar strlen/substr pois $desc ja esta em ISO-8859-1 (single-byte)
+			if ( strlen( $desc ) > 70 ) { $desc = substr( $desc, 0, 67 ) . '...'; }
 			$pdf->Cell( $ci, $H, (string) ( $idx + 1 ),                        1, 0, 'C' );
 			$pdf->Cell( $cd, $H, $desc,                                         1, 0, 'L' );
 			$pdf->Cell( $cq, $H, number_format( $qty, 0, ',', '.' ),           1, 0, 'C' );

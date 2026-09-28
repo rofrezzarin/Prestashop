@@ -866,7 +866,7 @@
     z-index: 2147483000;
     top: 24px;
     left: 50%;
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
@@ -875,14 +875,19 @@
     border-radius: 10px;
     color: #fff;
     box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(calc(-100% - 40px));
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.28s ease,
+                background-color 0.25s ease;
     cursor: pointer;
   }
 
   #pw-personalizados-app .pw-message-countdown { flex:0 0 auto; min-width:26px; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,.25); color:#fff; font-size:12px; font-weight:800; text-align:center; }
   #pw-personalizados-app .pw-msg-step { display:block; line-height:1.45; }
   #pw-personalizados-app .pw-msg-step + .pw-msg-step { margin-top:4px; }
-  #pw-personalizados-app .pw-message.pw-visible { display: flex; }
+  #pw-personalizados-app .pw-message.pw-visible { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
   #pw-personalizados-app .pw-message.pw-success { background: var(--pw-green); }
   #pw-personalizados-app .pw-message.pw-error { background: var(--pw-red); }
   #pw-personalizados-app .pw-message.pw-info { background: var(--pw-blue); }

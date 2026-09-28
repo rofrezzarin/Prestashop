@@ -1,0 +1,32 @@
+Editor de imagens Print Way — versão 1.0.217
+
+Instalação da versão 1.0.217: substitua a pasta editor-de-imagens dentro de wp-content/plugins/printway/ pela pasta deste pacote e limpe o cache do WordPress/navegador.
+
+Alterações principais:
+- Seleção múltipla com Ctrl + clique.
+- Aba Alinhamentos com esquerda, centro, direita e distribuição horizontal/vertical.
+- Redimensionamento proporcional somente pelos cantos; laterais preservam a medida do outro eixo.
+- Importação, restauração da imagem e remoção de fundo organizadas na aba Editar.
+- Histórico com nomes descritivos, sem rótulos Undo/Redo.
+- Fundo cinza na área de trabalho e quadriculado apenas sob objetos transparentes.
+- Salvamento automático local com recuperação após uma interrupção.
+- Remoção de fundo com processamento em segundo plano e progresso por imagem.
+- Guias de margem segura, centro, linhas de corte e encaixe inteligente no canvas.
+- Busca rápida de comandos com Ctrl+K e atalhos compatíveis com o Corel Draw.
+- Menu de contexto com atalhos visíveis (Ctrl+A/C/V/D/G/U e Delete).
+- Todos os botões da busca Ctrl+K agora executam o comando escolhido por mouse ou teclado.
+- Guias reais podem ser arrastadas da régua superior ou lateral e mantêm a posição exata em milímetros com zoom, rolagem e DPI.
+- Guias podem ser movidas, excluídas com Delete/duplo clique/arraste para fora e são preservadas no projeto .pwedit.
+- Régua superior permanece fixa ao rolar verticalmente e acompanha apenas a rolagem horizontal; a lateral faz o inverso.
+- Guias permanecem visíveis após soltar, mostram a seta dupla e podem ser devolvidas à régua para exclusão.
+- Importação real de TIFF/TIF no navegador, incluindo arquivos LZW, ZIP/Deflate, PackBits, JPEG e sem compressão.
+- TIFF com várias páginas é importado em sequência, preservando transparência, orientação e DPI incorporado.
+- Campos de largura e altura da área de trabalho um pouco maiores para não cortar os números.
+- Seção visível "COR DE FUNDO" removida da aba Arquivo; os padrões internos continuam disponíveis para preservar os projetos existentes.
+- Linhas-guia selecionáveis: clique destaca a guia, o botão direito mostra "Excluir" e a tecla Delete remove a guia selecionada.
+- Aba Editar reorganizada: importação disponível antes de Ações e os modos de remoção reunidos em REMOÇÃO DE FUNDO, com legendas curtas.
+- Faixa de botões limpa: os botões exibem somente ícones e mostram a explicação no título ao passar o mouse; o botão de envio foi removido de Arquivo.
+- Exportar abre automaticamente no mesmo formato do último arquivo importado, inclusive após recarregar o editor.
+- Botões da faixa exibem apenas o ícone; o texto fica disponível pelo título ao passar o mouse.
+- Sistema padronizado de faixa em todas as abas: ícones uniformes, grupos sem sobreposição e controles de Tolerância/Borda lado a lado.
+- Cada grupo mede automaticamente o próprio conteúdo; ao inserir ou remover botões, o grupo seguinte continua imediatamente após a divisória e a faixa oferece rolagem horizontal apenas quando necessário.

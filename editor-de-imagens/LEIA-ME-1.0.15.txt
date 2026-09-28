@@ -1,0 +1,14 @@
+EDITOR DE IMAGENS — VERSÃO 1.0.15
+
+Atualização: substitua a pasta editor-de-imagens dentro de /wp-content/plugins/printway/.
+Depois limpe o cache e recarregue com Ctrl + F5.
+
+Alterações desta versão:
+- A borracha e o restaurador são desligados ao trocar de aba ou clicar em outro botão. O círculo deixa o mouse imediatamente.
+- “Reset branco” passou a se chamar “Remover fundo”.
+- A remoção de fundo ficou com um único modo: Remover fundo. Os controles secundários de seleção de cor/contíguo foram retirados da interface.
+- Os cantos redimensionam sempre mantendo a proporção da imagem.
+- Duplicar coloca a cópia alinhada imediatamente à direita. Quando não couber, começa à esquerda na linha abaixo; as próximas cópias continuam preenchendo a grade.
+- A Ajuda foi atualizada com os novos nomes e exemplos.
+
+Validação: JavaScript verificado e 8 testes de regressão passaram com PNG/JPEG, pixels do canvas, abas, Ajuda, histórico, erro de arquivo e múltiplas instâncias do editor.

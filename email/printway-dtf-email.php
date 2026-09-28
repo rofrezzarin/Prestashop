@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Envio de pedidos
  * Description: Recebe os pedidos da calculadora DTF UV e envia os dados e anexos pelo wp_mail().
- * Version: 2.4.17
+ * Version: 2.4.18
  * Author: PrintWay
  */
 
@@ -513,7 +513,7 @@ function pw_dtf_render_admin_dtf_uv_page() {
         .pw-dtf-orders-table select{width:100%;max-width:100%;box-sizing:border-box}
         .pw-dtf-users-table{width:100%;min-width:1000px;table-layout:fixed}
         .pw-dtf-users-table th:nth-child(1){width:13%}.pw-dtf-users-table th:nth-child(2){width:6%}.pw-dtf-users-table th:nth-child(3){width:21%}.pw-dtf-users-table th:nth-child(4){width:17%}.pw-dtf-users-table th:nth-child(5){width:12%}.pw-dtf-users-table th:nth-child(6){width:18%}.pw-dtf-users-table th:nth-child(7){width:13%}
-        .pw-dtf-users-table select,.pw-dtf-users-table input{width:100%;max-width:100%;box-sizing:border-box}
+        .pw-dtf-users-table select,.pw-dtf-users-table input:not([type="checkbox"]){width:100%;max-width:100%;box-sizing:border-box}
         .pw-dtf-users-table th:nth-child(7),.pw-dtf-users-table td:nth-child(7){text-align:center}
         .pw-dtf-price-section{margin:22px 0;padding:16px;background:#fff;border:1px solid #ccd0d4;border-radius:4px}
         .pw-dtf-price-section h3{margin-top:0}.pw-dtf-price-table{width:100%;max-width:900px}

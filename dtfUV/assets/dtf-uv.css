@@ -157,36 +157,44 @@
       .pw-choice-cards {
         display: flex;
         gap: 16px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         margin-top: 4px;
       }
 
-      .pw-source-card {
-        display: flex;
+      /* Especificidade elevada (.pw-calc + .pw-source-card) para sobrescrever
+         estilos de <button> do tema WordPress. */
+      .pw-calc .pw-source-card {
+        display: flex !important;
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
-        flex: 0 1 230px;
+        flex: 1 1 0;
+        min-width: 0;
         min-height: 148px;
         padding: 18px 20px;
-        border: 2px solid #dce8fb;
+        border: 2px solid #dce8fb !important;
         border-radius: 14px;
-        background: var(--bg);
+        background: #ffffff !important;
+        color: inherit !important;
         cursor: pointer;
         text-align: left;
         font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        box-shadow: 0 1px 4px rgba(11,91,215,.07);
         transition: border-color .17s, box-shadow .17s, background .17s;
         box-sizing: border-box;
       }
 
-      .pw-source-card:hover {
-        border-color: #93b4f3;
-        background: #f3f7ff;
+      .pw-calc .pw-source-card:hover {
+        border-color: #93b4f3 !important;
+        background: #f3f7ff !important;
+        box-shadow: 0 2px 8px rgba(11,91,215,.12);
       }
 
-      .pw-source-card.is-selected {
-        border-color: var(--primary);
-        background: #eef4ff;
+      .pw-calc .pw-source-card.is-selected {
+        border-color: var(--primary) !important;
+        background: #eef4ff !important;
         box-shadow: 0 0 0 1px var(--primary);
       }
 
@@ -203,7 +211,7 @@
         transition: background .17s, color .17s;
       }
 
-      .pw-source-card.is-selected .pw-source-card-icon {
+      .pw-calc .pw-source-card.is-selected .pw-source-card-icon {
         background: var(--primary);
         color: #fff;
       }
@@ -681,7 +689,8 @@
         .pw-input, .pw-select, .pw-textarea { font-size: 16px; }
         .pw-actions-bottom { justify-content: stretch; }
         .pw-actions-bottom .pw-btn { flex: 1 1 0; }
-        .pw-source-card { flex: 1 1 100%; width: 100%; }
+        .pw-calc .pw-source-card { flex: 1 1 100% !important; width: 100%; }
+        .pw-choice-cards { flex-wrap: wrap; }
         #pw-payment-choice .pw-btn { flex-basis: 100%; width: 100%; }
         #pw-points-use, #pw-pay-later-code { max-width: none !important; width: 100% !important; }
         #btn-apply-points, #btn-validate-pay-later { width: 100%; }

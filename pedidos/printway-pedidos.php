@@ -19,7 +19,7 @@ if ( defined( 'PW_PERSONALIZADOS_MODULE_LOADED' ) ) {
 }
 
 define( 'PW_PERSONALIZADOS_MODULE_LOADED', true );
-define( 'PW_PERSONALIZADOS_VERSION', '1.32.394' );
+define( 'PW_PERSONALIZADOS_VERSION', '1.32.395' );
 define( 'PW_PERSONALIZADOS_DB_VERSION', '1.2.0' );
 define( 'PW_PERSONALIZADOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_PERSONALIZADOS_URL', plugin_dir_url( __FILE__ ) );
@@ -679,6 +679,87 @@ function pw_personalizados_resend_login_email() {
 	wp_send_json_success( array( 'email' => $user->user_email ) );
 }
 add_action( 'wp_ajax_pw_personalizados_resend_login_email', 'pw_personalizados_resend_login_email' );
+
+/**
+ * Busca um usuário WP correspondente a um cliente do Pedidos por CPF/CNPJ (prioridade)
+ * ou por e-mail. Retorna os dados do usuário e o nível de confiança do vínculo.
+ */
+function pw_personalizados_find_wp_user_for_client() {
+	pw_personalizados_ajax_guard();
+	$email    = isset( $_POST['email'] )    ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+	$document = isset( $_POST['document'] ) ? preg_replace( '/\D/', '', sanitize_text_field( wp_unslash( $_POST['document'] ) ) ) : '';
+
+	$build_result = function ( $user, $confidence ) {
+		return array(
+			'found'        => true,
+			'confidence'   => $confidence,
+			'wp_user_id'   => (int) $user->ID,
+			'login'        => $user->user_login,
+			'email'        => $user->user_email,
+			'display_name' => $user->display_name,
+			'registered'   => $user->user_registered,
+			'last_login'   => (string) get_user_meta( $user->ID, 'pw_last_login', true ),
+			'login_count'  => (int) get_user_meta( $user->ID, 'pw_login_count', true ),
+		);
+	};
+
+	/* 1. CPF/CNPJ: confiança máxima — documento único por pessoa/empresa. */
+	if ( $document && ( 11 === strlen( $document ) || 14 === strlen( $document ) ) ) {
+		$by_doc = array_merge(
+			get_users( array( 'meta_key' => 'billing_cpf',  'meta_value' => $document, 'number' => 2 ) ),
+			get_users( array( 'meta_key' => 'billing_cnpj', 'meta_value' => $document, 'number' => 2 ) )
+		);
+		if ( 1 === count( $by_doc ) ) {
+			wp_send_json_success( $build_result( $by_doc[0], 'document' ) );
+		}
+	}
+
+	/* 2. E-mail: alta confiança. */
+	if ( $email ) {
+		$user = get_user_by( 'email', $email );
+		if ( $user ) {
+			wp_send_json_success( $build_result( $user, 'email' ) );
+		}
+	}
+
+	wp_send_json_success( array( 'found' => false ) );
+}
+add_action( 'wp_ajax_pw_personalizados_find_wp_user_for_client', 'pw_personalizados_find_wp_user_for_client' );
+
+/**
+ * Ao registrar um novo usuário WP (via WooCommerce ou painel),
+ * vincula automaticamente ao cliente do Pedidos que tiver o mesmo e-mail
+ * e ainda não estiver vinculado.
+ */
+add_action( 'user_register', function ( $user_id ) {
+	$user = get_userdata( $user_id );
+	if ( ! $user || ! $user->user_email ) {
+		return;
+	}
+	global $wpdb;
+	$table = $wpdb->prefix . 'pw_personalizados_clients';
+	if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+		return;
+	}
+	$like = '%' . $wpdb->esc_like( '"email":"' . $user->user_email ) . '%';
+	$row  = $wpdb->get_row(
+		$wpdb->prepare( "SELECT object_id, payload FROM {$table} WHERE payload LIKE %s LIMIT 1", $like ),
+		ARRAY_A
+	);
+	if ( ! $row ) {
+		return;
+	}
+	$payload = json_decode( $row['payload'], true );
+	if ( ! is_array( $payload ) || ! empty( $payload['wpUserId'] ) ) {
+		return;
+	}
+	$payload['wpUserId'] = $user_id;
+	$wpdb->update(
+		$table,
+		array( 'payload' => wp_json_encode( $payload ) ),
+		array( 'object_id' => (int) $row['object_id'] )
+	);
+} );
 
 /** Calcula o dígito verificador da chave de acesso da NF-e (módulo 11). */
 function pw_personalizados_nfe_check_digit( $base ) {

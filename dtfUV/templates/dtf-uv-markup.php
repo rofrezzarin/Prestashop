@@ -121,7 +121,7 @@
                 </div>
                 <div>
                   <label class="pw-field-label" for="sender-number">Número</label>
-                  <input id="sender-number" class="pw-input" type="text" placeholder="123" autocomplete="off" />
+                  <input id="sender-number" class="pw-input" type="text" placeholder="Ex: 123 ou S/N" autocomplete="off" />
                 </div>
               </div>
               <div class="pw-grid pw-identification-grid" style="margin-top:8px">

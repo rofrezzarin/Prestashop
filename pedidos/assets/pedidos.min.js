@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.394
+// PW_BUILD_VERSION: 1.32.395
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -7087,6 +7087,11 @@
       if (loginTab) loginTab.hidden = false;
       if (loginTabInfo) {
         loginTabInfo.removeAttribute('data-wp-user-id');
+        loginTabInfo.innerHTML = '<p style="color:var(--pw-text-soft,#64748b);font-size:.875em;text-align:center;padding:16px">Buscando vínculo com usuário WordPress…</p>';
+      }
+      const showNoLogin = () => {
+        if (!loginTabInfo) return;
+        loginTabInfo.removeAttribute('data-wp-user-id');
         loginTabInfo.innerHTML =
           '<div style="text-align:center;padding:24px 16px">' +
           '<p style="color:var(--pw-text-soft,#64748b);margin:0 0 16px">Este cliente não tem login de acesso ao sistema.</p>' +
@@ -7107,7 +7112,42 @@
           if (confirmBtn) { confirmBtn.textContent = 'Criar login'; confirmBtn.disabled = false; }
           openModal('pw-wp-login-modal');
         });
-      }
+      };
+      if (!SERVER.ajaxUrl || !SERVER.nonce || (!client.email && !client.document)) { showNoLogin(); return; }
+      const findForm = new URLSearchParams();
+      findForm.append('action', 'pw_personalizados_find_wp_user_for_client');
+      findForm.append('nonce', SERVER.nonce);
+      findForm.append('email', client.email || '');
+      findForm.append('document', (client.document || '').replace(/\D/g, ''));
+      fetch(SERVER.ajaxUrl, { method: 'POST', credentials: 'same-origin', cache: 'no-store', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: findForm.toString() })
+        .then(r => r.json())
+        .then(async result => {
+          if (!result || !result.success || !result.data || !result.data.found) { showNoLogin(); return; }
+          const d = result.data;
+          const clients = getClients();
+          const idx = clients.findIndex(c => String(c.id) === String(editingClientId));
+          if (idx >= 0 && !clients[idx].wpUserId) {
+            clients[idx].wpUserId = d.wp_user_id;
+            await writeStorage(STORAGE.clients, clients, { immediate: true });
+          }
+          if (!loginTabInfo) return;
+          loginTabInfo.setAttribute('data-wp-user-id', String(d.wp_user_id));
+          const lastLogin = d.last_login ? new Date(d.last_login).toLocaleString('pt-BR') : 'Nunca';
+          const confidenceNote = d.confidence === 'document'
+            ? '<p style="color:var(--pw-success,#16a34a);font-size:.8em;margin:0 0 12px">✓ Vínculo detectado e salvo automaticamente por CPF/CNPJ.</p>'
+            : '<p style="color:var(--pw-warning,#d97706);font-size:.8em;margin:0 0 12px">⚡ Vínculo detectado por e-mail e salvo automaticamente.</p>';
+          loginTabInfo.innerHTML =
+            confidenceNote +
+            '<div class="pw-client-login-info-grid">' +
+            '<div class="pw-client-login-info-row"><span>Login</span><strong>' + escapeHtml(d.login) + '</strong></div>' +
+            '<div class="pw-client-login-info-row"><span>E-mail</span><strong>' + escapeHtml(d.email) + '</strong></div>' +
+            '<div class="pw-client-login-info-row"><span>Nome</span><strong>' + escapeHtml(d.display_name) + '</strong></div>' +
+            '<div class="pw-client-login-info-row"><span>Cadastrado em</span><strong>' + new Date(d.registered).toLocaleDateString('pt-BR') + '</strong></div>' +
+            '<div class="pw-client-login-info-row"><span>Último acesso</span><strong>' + escapeHtml(lastLogin) + '</strong></div>' +
+            '<div class="pw-client-login-info-row"><span>Total de logins</span><strong>' + escapeHtml(String(d.login_count)) + '</strong></div>' +
+            '</div>';
+        })
+        .catch(() => showNoLogin());
       return;
     }
     if (loginTab) loginTab.hidden = false;

@@ -2948,7 +2948,7 @@
               if (cepDigits.length !== 8) { showErr("CEP inválido. Preencha e pressione Enter para buscar."); return; }
               if (addressFieldsBlock && addressFieldsBlock.style.display !== "none") {
                 if (!streetInput || !streetInput.value.trim())           { showErr("Informe o logradouro."); return; }
-                if (!numberInput || !numberInput.value.trim())           { showErr("Informe o número."); return; }
+                if (!numberInput || !numberInput.value.trim())           { showErr("Informe o número do endereço (ou S/N se não houver)."); return; }
                 if (!neighborhoodInput || !neighborhoodInput.value.trim()){ showErr("Informe o bairro."); return; }
                 if (!cityInput || !cityInput.value.trim())               { showErr("Informe a cidade."); return; }
                 if (!stateInput || !stateInput.value.trim())             { showErr("Informe o estado (UF)."); return; }

@@ -19,7 +19,7 @@ if ( defined( 'PW_PERSONALIZADOS_MODULE_LOADED' ) ) {
 }
 
 define( 'PW_PERSONALIZADOS_MODULE_LOADED', true );
-define( 'PW_PERSONALIZADOS_VERSION', '1.32.393' );
+define( 'PW_PERSONALIZADOS_VERSION', '1.32.394' );
 define( 'PW_PERSONALIZADOS_DB_VERSION', '1.2.0' );
 define( 'PW_PERSONALIZADOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_PERSONALIZADOS_URL', plugin_dir_url( __FILE__ ) );
@@ -3794,5 +3794,140 @@ function pw_personalizados_whatsapp_send() {
 	wp_send_json_success( array( 'sent' => true ) );
 }
 add_action( 'wp_ajax_pw_personalizados_whatsapp_send', 'pw_personalizados_whatsapp_send' );
+
+/**
+ * Recebe um pedido criado pela calculadora DTF UV online e o registra
+ * na tabela de pedidos do sistema. Disparado via do_action('pw_dtf_order_created').
+ *
+ * @param array $data Dados do pedido DTF UV.
+ */
+function pw_personalizados_import_dtf_order( $data ) {
+	global $wpdb;
+
+	if ( ! is_array( $data ) ) {
+		return;
+	}
+
+	$order_num = isset( $data['reference'] ) ? (string) $data['reference'] : '';
+	if ( '' === $order_num ) {
+		return;
+	}
+
+	pw_personalizados_install_tables();
+
+	$now_sql  = current_time( 'mysql', true );
+	$today    = wp_date( 'Y-m-d' );
+	$time_now = wp_date( 'H:i:s' );
+	$now_iso  = gmdate( 'Y-m-d\TH:i:s\Z' );
+
+	$wp_user_id = isset( $data['user_id'] ) ? (int) $data['user_id'] : 0;
+	$wp_user    = $wp_user_id > 0 ? get_userdata( $wp_user_id ) : false;
+	$client_name = isset( $data['name'] ) ? (string) $data['name'] : '';
+
+	$creator = array(
+		'id'      => $wp_user_id,
+		'name'    => $wp_user ? (string) $wp_user->display_name : $client_name,
+		'login'   => $wp_user ? (string) $wp_user->user_login : (string) ( isset( $data['email'] ) ? $data['email'] : '' ),
+		'role'    => 'Cliente',
+		'summary' => $wp_user ? (string) $wp_user->display_name : $client_name,
+	);
+
+	$amount          = isset( $data['amount'] ) ? (float) $data['amount'] : 0;
+	$height          = isset( $data['height'] ) ? (float) $data['height'] : 0;
+	$email           = isset( $data['email'] ) ? (string) $data['email'] : '';
+	$whatsapp        = isset( $data['whatsapp'] ) ? (string) $data['whatsapp'] : '';
+	$payment_method  = isset( $data['payment_method'] ) ? (string) $data['payment_method'] : '';
+	$payment_label   = isset( $data['payment_label'] ) ? (string) $data['payment_label'] : '';
+	$delivery_label  = isset( $data['delivery_label'] ) ? (string) $data['delivery_label'] : '';
+	$instructions    = isset( $data['instructions'] ) ? (string) $data['instructions'] : '';
+	$detail          = isset( $data['detail'] ) ? (string) $data['detail'] : '';
+	$points_used     = isset( $data['points_used'] ) ? (int) $data['points_used'] : 0;
+	$points_discount = isset( $data['points_discount'] ) ? (float) $data['points_discount'] : 0;
+	$is_paid         = in_array( $payment_method, array( 'pix', 'points' ), true );
+
+	$notes_parts = array_filter( array(
+		$height > 0 ? 'Altura: ' . number_format( $height, 2, ',', '.' ) . ' cm' : '',
+		$payment_label ? 'Pagamento: ' . $payment_label : '',
+		$delivery_label ? 'Entrega: ' . $delivery_label : '',
+		$points_used > 0 ? 'Pontos: ' . $points_used . ' (-R$ ' . number_format( $points_discount, 2, ',', '.' ) . ')' : '',
+		$detail ?: '',
+	) );
+	$notes = implode( ' — ', $notes_parts );
+	if ( $instructions ) {
+		$notes .= ( $notes ? "\n" : '' ) . 'Observações: ' . $instructions;
+	}
+
+	$payments = array();
+	if ( $is_paid && $amount > 0 ) {
+		$payments[] = array(
+			'method'       => $payment_label,
+			'type'         => 'Total',
+			'date'         => $today,
+			'value'        => $amount,
+			'note'         => 'Pago pelo cliente via calculadora DTF UV online',
+			'registeredAt' => $now_iso,
+		);
+	}
+
+	$order = array(
+		'orderNumber'            => $order_num,
+		'createdDate'            => $today,
+		'orderTime'              => $time_now,
+		'lastChange'             => $now_iso,
+		'requestedDelivery'      => '',
+		'actualDelivery'         => '',
+		'status'                 => 'Criação da arte',
+		'origin'                 => 'DTF UV Online',
+		'marketplaceOrderNumber' => '',
+		'registrationSource'     => 'client_dtf',
+		'createdBy'              => $creator,
+		'client'                 => array(
+			'id'                     => '',
+			'code'                   => '',
+			'name'                   => $client_name,
+			'phone'                  => $whatsapp,
+			'email'                  => $email,
+			'document'               => '',
+			'address'                => array(),
+			'origin'                 => 'Normal',
+			'marketplaceOrderNumber' => '',
+			'monthlyClosing'         => false,
+			'closingDay'             => 0,
+		),
+		'items'                  => array(
+			array(
+				'product'  => 'Impressão DTF UV',
+				'quantity' => 1,
+				'unit'     => 'un.',
+				'price'    => $amount,
+				'total'    => $amount,
+				'notes'    => $detail ?: ( $height > 0 ? 'Altura: ' . number_format( $height, 2, ',', '.' ) . ' cm' : 'Pedido via calculadora online' ),
+			),
+		),
+		'personalizationNotes'   => $notes,
+		'total'                  => $amount,
+		'discount'               => 0,
+		'surcharge'              => 0,
+		'paid'                   => $is_paid ? $amount : 0,
+		'paymentMethod'          => $payment_label,
+		'paymentType'            => $is_paid ? 'Total' : '',
+		'paymentDate'            => $is_paid ? $today : '',
+		'paymentStatus'          => $is_paid ? 'Pago' : '',
+		'payments'               => $payments,
+		'timeline'               => array(),
+	);
+
+	$columns      = pw_personalizados_record_columns( $order );
+	$payload      = wp_json_encode( $order, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+	$orders_table = pw_personalizados_table_map()['pw_personalizados_orders'];
+
+	$wpdb->query( $wpdb->prepare(
+		"INSERT INTO {$orders_table} (object_id, code, name, status, event_date, total, payload, created_at, updated_at)
+		 VALUES (%s, %s, %s, %s, %s, %f, %s, %s, %s)
+		 ON DUPLICATE KEY UPDATE code = VALUES(code), name = VALUES(name), status = VALUES(status), event_date = VALUES(event_date), total = VALUES(total), payload = VALUES(payload), updated_at = VALUES(updated_at)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$order_num, $columns['code'], $columns['name'], $columns['status'], $columns['date'], $columns['total'], $payload, $now_sql, $now_sql
+	) );
+}
+add_action( 'pw_dtf_order_created', 'pw_personalizados_import_dtf_order' );
 
 

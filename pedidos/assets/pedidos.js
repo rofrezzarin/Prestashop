@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.393
+// PW_BUILD_VERSION: 1.32.394
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -8480,6 +8480,23 @@
     return '<span class="pw-client-info-dot pw-customer-type-' + (isReseller ? 'reseller' : 'direct') + ' pw-tooltip" data-tooltip="' + (isReseller ? 'Revenda' : 'Cliente direto') + '" aria-label="' + (isReseller ? 'Revenda' : 'Cliente direto') + '">' + icon + '</span>';
   }
 
+  function orderRegistrationSourceIndicatorHtml(order) {
+    if (!order) return '';
+    const isClientSelf = order.registrationSource === 'client_dtf';
+    const creator = order.createdBy || {};
+    const creatorName = String(creator.name || creator.login || creator.summary || '').trim();
+    if (isClientSelf) {
+      const displayName = creatorName || (order.client && order.client.name ? String(order.client.name) : '');
+      const tooltip = 'Cadastrado pelo próprio cliente' + (displayName ? ': ' + displayName : '');
+      return '<span class="pw-status-dot pw-reg-source-dot pw-reg-source-client pw-tooltip" data-tooltip="' + escapeHtml(tooltip) + '" aria-label="Cadastrado pelo cliente">●</span>';
+    }
+    if (!order.registrationSource && !creator.id && !creatorName) return '';
+    const role = String(creator.role || '').trim();
+    const displayRole = role && role !== 'Cliente' ? role.toLowerCase() : 'colaborador';
+    const tooltip = 'Cadastrado por ' + displayRole + (creatorName ? ': ' + creatorName : '');
+    return '<span class="pw-status-dot pw-reg-source-dot pw-reg-source-system pw-tooltip" data-tooltip="' + escapeHtml(tooltip) + '" aria-label="' + escapeHtml('Cadastrado por ' + (creatorName || 'colaborador')) + '">●</span>';
+  }
+
   function orderInfoLegendHtml() {
     return '<span><b class="pw-order-finalization-icon pw-order-finalization-icon-success">✓</b>Pedido finalizado</span>' +
       '<span><b class="pw-order-finalization-icon pw-order-finalization-icon-open">×</b>Pedido em aberto</span>' +
@@ -8487,12 +8504,14 @@
       '<span>' + clientOriginIndicatorHtml({ origin:'Mercado Livre', marketplaceOrderNumber:'—' }) + 'Mercado Livre</span>' +
       '<span>' + clientOriginIndicatorHtml({ origin:'Shopee', marketplaceOrderNumber:'—' }) + 'Shopee</span>' +
       '<span>' + customerTypeIndicatorHtml('direto') + 'Cliente direto</span>' +
-      '<span>' + customerTypeIndicatorHtml('revenda') + 'Revenda</span>';
+      '<span>' + customerTypeIndicatorHtml('revenda') + 'Revenda</span>' +
+      '<span>' + orderRegistrationSourceIndicatorHtml({ registrationSource: 'system', createdBy: { role: 'colaborador', name: '' } }) + 'Cadastrado por colaborador/adm</span>' +
+      '<span>' + orderRegistrationSourceIndicatorHtml({ registrationSource: 'client_dtf', createdBy: {} }) + 'Cadastrado pelo próprio cliente</span>';
   }
 
   function orderInfoIndicatorsHtml(order) {
     const client = getClients().find(record => String(record.id) === String(order && order.client && order.client.id)) || (order && order.client);
-    return '<div class="pw-order-info-indicators">' + finalizationIndicatorHtml(order) + clientOriginIndicatorHtml(order && order.client) + customerTypeIndicatorHtml(client && client.customerType) + '</div>';
+    return '<div class="pw-order-info-indicators">' + finalizationIndicatorHtml(order) + clientOriginIndicatorHtml(order && order.client) + customerTypeIndicatorHtml(client && client.customerType) + orderRegistrationSourceIndicatorHtml(order) + '</div>';
   }
 
   function orderFinancialValidation(order) {
@@ -16132,6 +16151,7 @@
       status: $('#pw-status').value,
       origin: orderOrigin,
       marketplaceOrderNumber: marketplace ? marketplaceOrderNumber : '',
+      registrationSource: (oldOrder && oldOrder.registrationSource) || 'system',
       createdBy: loadedOrderCreator || {
         id: Number(currentUser && currentUser.id) || 0,
         name: String(currentUser && (currentUser.full_name || currentUser.display) || '').trim(),

@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Envio de pedidos
  * Description: Recebe os pedidos da calculadora DTF UV e envia os dados e anexos pelo wp_mail().
- * Version: 2.4.15
+ * Version: 2.4.16
  * Author: PrintWay
  */
 
@@ -2434,6 +2434,27 @@ function pw_dtf_send_order() {
 	}
 	if ( '' !== $order_reference ) {
 		pw_dtf_mark_calculation_completed( $calculation_id, $calculation_session, $order_reference );
+	}
+
+	if ( '' !== $order_reference ) {
+		do_action( 'pw_dtf_order_created', array(
+			'reference'       => $order_reference,
+			'user_id'         => get_current_user_id(),
+			'name'            => $name,
+			'email'           => $email,
+			'whatsapp'        => $whatsapp,
+			'amount'          => $amount,
+			'original_amount' => $original,
+			'height'          => $height,
+			'customer_type'   => $customer,
+			'payment_method'  => $payment,
+			'payment_label'   => 'pix' === $payment ? 'Pix' : ( 'points' === $payment ? 'Pontos' : ( isset( $alternative_payments[ $payment_type ] ) ? $alternative_payments[ $payment_type ] : 'Outro' ) ),
+			'delivery_label'  => isset( $delivery_options[ $delivery ] ) ? $delivery_options[ $delivery ] : $delivery,
+			'points_used'     => $points_used,
+			'points_discount' => $points_discount,
+			'instructions'    => $instructions,
+			'detail'          => $detail,
+		) );
 	}
 
 	wp_send_json_success(

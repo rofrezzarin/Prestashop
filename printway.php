@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PrintWay
  * Description: Carregador principal dos módulos PrintWay: DTF UV, Pedidos, Backup, Pix, Editor de imagens e Mercado Livre.
- * Version: 2.2.87
+ * Version: 2.2.88
  * Author: PrintWay
  */
 

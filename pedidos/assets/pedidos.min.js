@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.390
+// PW_BUILD_VERSION: 1.32.391
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -5964,7 +5964,7 @@
       if (service.code === fastestCode)   badges.push('<span class="pw-service-badge pw-badge-fastest">⚡ Mais rápido</span>');
       return '<label class="pw-me-service-card" for="' + id + '">' +
         '<input type="radio" name="pw-me-service" id="' + id + '" value="' + escapeHtml(service.code) + '"' + checked + '>' +
-        '<div class="pw-msc-top">' + logoHtml + '<span class="pw-platform-badge pw-badge-me">ME</span>' + badges.join('') + '<span class="pw-msc-checkmark">✓</span></div>' +
+        '<div class="pw-msc-top">' + logoHtml + '<img class="pw-me-platform-logo" src="https://melhorenvio.com.br/favicon.ico" alt="Melhor Envios" onerror="this.outerHTML=\'<span class=&quot;pw-platform-badge pw-badge-me&quot;>ME</span>\'">' + badges.join('') + '<span class="pw-msc-checkmark">✓</span></div>' +
         '<div class="pw-msc-name">' + escapeHtml(service.description || service.code || 'Entrega') + '</div>' +
         '<div class="pw-msc-carrier">' + escapeHtml(service.carrier || ' ') + '</div>' +
         '<div class="pw-msc-spacer"></div>' +

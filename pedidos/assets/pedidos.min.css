@@ -1,4 +1,4 @@
-/* PW_BUILD_VERSION: 1.32.390 */
+/* PW_BUILD_VERSION: 1.32.391 */
 #pw-personalizados-app,
   #pw-personalizados-app * {
     box-sizing: border-box;
@@ -3239,8 +3239,10 @@
 #pw-personalizados-app .pw-pstatus-error{background:#fee2e2;color:#991b1b}
 #pw-personalizados-app .pw-pstatus-muted{background:#f1f5f9;color:#64748b}
 /* Badges de plataforma e classificação */
-#pw-personalizados-app .pw-platform-badge{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;vertical-align:middle;margin-left:4px;letter-spacing:.3px;text-transform:uppercase}
+#pw-personalizados-app .pw-platform-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;vertical-align:middle;margin-left:4px;letter-spacing:.3px;text-transform:uppercase;height:20px;box-sizing:border-box}
 #pw-personalizados-app .pw-badge-me{background:#ede9fe;color:#5b21b6}
+/* Logo da plataforma ME no card de serviço */
+#pw-personalizados-app .pw-me-platform-logo{height:20px;width:auto;max-width:64px;object-fit:contain;flex-shrink:0}
 #pw-personalizados-app .pw-badge-frenet{background:#fff3cd;color:#92400e}
 #pw-personalizados-app .pw-service-badge{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;vertical-align:middle;margin-left:4px}
 @keyframes pw-badge-pulse-price{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(22,101,52,.4)}50%{transform:scale(1.12);box-shadow:0 0 0 4px rgba(22,101,52,0)}}
@@ -3595,13 +3597,14 @@
 #pw-order-picker-overlay .pw-opm-name{font-size:14px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #pw-order-picker-overlay .pw-opm-status{font-size:12px;color:#64748b;white-space:nowrap}
 /* Cards de serviço Melhor Envio — Gerar Etiqueta */
-#pw-personalizados-app .pw-me-services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));align-items:stretch;gap:12px;margin-top:10px}
+#pw-personalizados-app .pw-me-services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));align-items:stretch;gap:12px;margin-top:10px}
 #pw-personalizados-app .pw-me-service-card{position:relative;display:flex;flex-direction:column;gap:0;padding:12px 14px;border:1.5px solid #dbe2ea;border-radius:10px;background:#fff;cursor:pointer;transition:border-color .12s,background .12s}
 #pw-personalizados-app .pw-me-service-card input[type=radio]{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
 #pw-personalizados-app .pw-me-service-card:has(input:checked){border-color:#963b00;background:#fff7ed}
 #pw-personalizados-app .pw-me-service-card:hover{border-color:#fbd38d;background:#fffbf5}
-#pw-personalizados-app .pw-msc-top{display:flex;align-items:center;gap:6px;margin-bottom:8px}
-#pw-personalizados-app .pw-carrier-logo.pw-msc-logo{height:22px;max-width:70px;object-fit:contain}
+#pw-personalizados-app .pw-msc-top{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+#pw-personalizados-app .pw-msc-top .pw-service-badge{flex:0 0 100%;display:flex;justify-content:center;align-items:center;height:20px;margin-top:2px}
+#pw-personalizados-app .pw-carrier-logo.pw-msc-logo{height:20px;max-width:70px;object-fit:contain}
 #pw-personalizados-app .pw-msc-logo-placeholder{display:inline-block;width:22px;height:22px}
 #pw-personalizados-app .pw-msc-checkmark{margin-left:auto;font-size:14px;font-weight:700;color:#963b00;opacity:0;transition:opacity .12s}
 #pw-personalizados-app .pw-me-service-card:has(input:checked) .pw-msc-checkmark{opacity:1}
@@ -3651,4 +3654,4 @@
 .pw-nfe-platform-shopee{font-size:18px;line-height:1}
 .pw-nfe-notify-users{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:8px}
 .pw-nfe-notify-users .pw-nfe-notify-user-row{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px 0}
-@media(max-width:600px){#pw-personalizados-app .pw-me-services-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}#pw-client-update-overlay .pw-cud-actions{flex-direction:column-reverse}#pw-client-update-overlay .pw-btn-outline{margin-left:0}.pw-nfev-actions{flex-direction:column-reverse}}
+@media(max-width:600px){#pw-personalizados-app .pw-me-services-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}#pw-client-update-overlay .pw-cud-actions{flex-direction:column-reverse}#pw-client-update-overlay .pw-btn-outline{margin-left:0}.pw-nfev-actions{flex-direction:column-reverse}}

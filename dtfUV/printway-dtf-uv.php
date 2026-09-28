@@ -21,7 +21,7 @@ if ( defined( 'PW_DTF_UV_MODULE_LOADED' ) ) {
 }
 define( 'PW_DTF_UV_MODULE_LOADED', true );
 
-define( 'PW_DTF_UV_VERSION', '1.4.0' );
+define( 'PW_DTF_UV_VERSION', '1.5.0' );
 define( 'PW_DTF_UV_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_DTF_UV_URL', plugin_dir_url( __FILE__ ) );
 define( 'PW_DTF_UV_SHORTCODE', 'printway_dtf_uv' );

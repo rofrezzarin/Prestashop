@@ -2230,6 +2230,99 @@
           }
         }
 
+        /* === Campos extras de cadastro (CPF/CNPJ, CEP, endereço) === */
+        const extraProfileFields  = document.getElementById("pw-extra-profile-fields");
+        const addressFieldsBlock  = document.getElementById("pw-address-fields");
+        const cpfCnpjInput        = document.getElementById("sender-cpfcnpj");
+        const cepInput            = document.getElementById("sender-cep");
+        const streetInput         = document.getElementById("sender-street");
+        const numberInput         = document.getElementById("sender-number");
+        const complementInput     = document.getElementById("sender-complement");
+        const neighborhoodInput   = document.getElementById("sender-neighborhood");
+        const cityInput           = document.getElementById("sender-city");
+        const stateInput          = document.getElementById("sender-state");
+
+        function fmtCpfCnpj(v) {
+          var d = v.replace(/\D/g, "").slice(0, 14);
+          if (d.length <= 11) {
+            return d.replace(/(\d{3})(\d)/, "$1.$2")
+                    .replace(/(\d{3})(\d)/, "$1.$2")
+                    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+          }
+          return d.replace(/^(\d{2})(\d)/, "$1.$2")
+                  .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+                  .replace(/\.(\d{3})(\d)/, ".$1/$2")
+                  .replace(/(\d{4})(\d)/, "$1-$2");
+        }
+
+        function fmtCep(v) {
+          var d = v.replace(/\D/g, "").slice(0, 8);
+          return d.length > 5 ? d.slice(0, 5) + "-" + d.slice(5) : d;
+        }
+
+        if (currentUser) {
+          if (currentUser.cpf_cnpj && cpfCnpjInput)        cpfCnpjInput.value        = fmtCpfCnpj(currentUser.cpf_cnpj);
+          if (currentUser.cep && cepInput)                  cepInput.value            = fmtCep(currentUser.cep);
+          if (currentUser.address_street && streetInput)    streetInput.value         = currentUser.address_street;
+          if (currentUser.address_number && numberInput)    numberInput.value         = currentUser.address_number;
+          if (currentUser.address_complement && complementInput) complementInput.value = currentUser.address_complement;
+          if (currentUser.address_neighborhood && neighborhoodInput) neighborhoodInput.value = currentUser.address_neighborhood;
+          if (currentUser.address_city && cityInput)        cityInput.value           = currentUser.address_city;
+          if (currentUser.address_state && stateInput)      stateInput.value          = currentUser.address_state;
+
+          var extraRequired = ["cpf_cnpj","cep","street","number","neighborhood","city","state"];
+          var missingExtra  = (currentUser.missing_required || []).filter(function(f){ return extraRequired.indexOf(f) >= 0; });
+          if (extraProfileFields && missingExtra.length > 0) {
+            extraProfileFields.style.display = "block";
+            if (addressFieldsBlock && (currentUser.cep || currentUser.address_street)) {
+              addressFieldsBlock.style.display = "block";
+            }
+          }
+
+          /* Tipo de cliente — oculta o campo para não-admins e define o valor */
+          if (!currentUser.is_admin) {
+            var tipoEl = document.getElementById("pw-tipo-step");
+            if (tipoEl && tipoEl.parentElement) tipoEl.parentElement.style.display = "none";
+            if (tipoEl && currentUser.client_type) tipoEl.value = currentUser.client_type;
+          }
+        }
+
+        /* ViaCEP */
+        async function lookupViaCep(rawCep) {
+          var d = rawCep.replace(/\D/g, "");
+          if (d.length !== 8) return;
+          if (addressFieldsBlock) addressFieldsBlock.style.display = "block";
+          try {
+            var res  = await fetch("https://viacep.com.br/ws/" + d + "/json/");
+            var data = await res.json();
+            if (data && !data.erro) {
+              if (streetInput && !streetInput.value.trim())         streetInput.value       = data.logradouro  || "";
+              if (neighborhoodInput && !neighborhoodInput.value.trim()) neighborhoodInput.value = data.bairro  || "";
+              if (cityInput && !cityInput.value.trim())             cityInput.value         = data.localidade  || "";
+              if (stateInput && !stateInput.value.trim())           stateInput.value        = data.uf          || "";
+              setTimeout(function(){ if (numberInput && !numberInput.value) numberInput.focus(); }, 60);
+            }
+          } catch(e) { /* ViaCEP offline */ }
+        }
+
+        if (cepInput) {
+          cepInput.addEventListener("input",  function(){ cepInput.value = fmtCep(cepInput.value); });
+          cepInput.addEventListener("keydown", function(e){ if (e.key === "Enter"){ e.preventDefault(); lookupViaCep(cepInput.value); } });
+          cepInput.addEventListener("blur",    function(){ lookupViaCep(cepInput.value); });
+        }
+        if (cpfCnpjInput) {
+          cpfCnpjInput.addEventListener("input", function(){
+            var start = cpfCnpjInput.selectionStart;
+            var before = cpfCnpjInput.value.slice(0, start).replace(/\D/g,"").length;
+            cpfCnpjInput.value = fmtCpfCnpj(cpfCnpjInput.value);
+            var ct = 0, ni = 0;
+            for (ni = 0; ni < cpfCnpjInput.value.length && ct < before; ni++) {
+              if (/\d/.test(cpfCnpjInput.value[ni])) ct++;
+            }
+            cpfCnpjInput.setSelectionRange(ni, ni);
+          });
+        }
+
         if (saved && !currentUser) {
           if (!senderName.value && saved.name) {
             senderName.value = saved.name;
@@ -2833,51 +2926,65 @@
 
         document
           .getElementById("btn-start-next")
-          .addEventListener("click", function () {
-            const name = senderName.value.trim();
-
+          .addEventListener("click", async function () {
+            const name     = senderName.value.trim();
             const whatsapp = senderWhatsapp.value.trim();
+            const email    = senderEmail.value.trim();
+            const digits   = whatsapp.replace(/\D/g, "");
+            const emailRx  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-            const email = senderEmail.value.trim();
+            const showErr = function(msg){ identError.style.display = "block"; identError.textContent = msg; };
 
-            const digits = whatsapp.replace(/\D/g, "");
+            if (name.length < 2)                         { showErr("Nome obrigatório."); return; }
+            if (!/^[1-9]{2}9\d{8}$/.test(digits))       { showErr("WhatsApp inválido."); return; }
+            if (!emailRx.test(email))                    { showErr("E-mail inválido."); return; }
 
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-            if (name.length < 2) {
-              identError.style.display = "block";
-
-              identError.textContent = "Nome obrigatório.";
-
-              return;
-            }
-
-            if (!/^[1-9]{2}9\d{8}$/.test(digits)) {
-              identError.style.display = "block";
-
-              identError.textContent = "WhatsApp inválido.";
-
-              return;
-            }
-
-            if (!emailRegex.test(email)) {
-              identError.style.display = "block";
-
-              identError.textContent = "E-mail inválido.";
-
-              return;
+            /* Validação dos campos extras (se visíveis) */
+            var needSaveProfile = false;
+            if (extraProfileFields && extraProfileFields.style.display !== "none") {
+              var cpfCnpjDigits = cpfCnpjInput ? cpfCnpjInput.value.replace(/\D/g,"") : "";
+              if (cpfCnpjDigits.length !== 11 && cpfCnpjDigits.length !== 14) { showErr("CPF ou CNPJ inválido."); return; }
+              var cepDigits = cepInput ? cepInput.value.replace(/\D/g,"") : "";
+              if (cepDigits.length !== 8) { showErr("CEP inválido. Preencha e pressione Enter para buscar."); return; }
+              if (addressFieldsBlock && addressFieldsBlock.style.display !== "none") {
+                if (!streetInput || !streetInput.value.trim())           { showErr("Informe o logradouro."); return; }
+                if (!numberInput || !numberInput.value.trim())           { showErr("Informe o número."); return; }
+                if (!neighborhoodInput || !neighborhoodInput.value.trim()){ showErr("Informe o bairro."); return; }
+                if (!cityInput || !cityInput.value.trim())               { showErr("Informe a cidade."); return; }
+                if (!stateInput || !stateInput.value.trim())             { showErr("Informe o estado (UF)."); return; }
+              }
+              needSaveProfile = true;
             }
 
             identError.style.display = "none";
 
-            persistSender({
-              name: name,
+            /* Salva no servidor (não bloqueia se falhar) */
+            if (needSaveProfile) {
+              try {
+                var server2 = window.PW_SERVER_DATA || {};
+                var f2 = new URLSearchParams();
+                f2.append("action", "printway_dtf_save_user_profile");
+                f2.append("nonce",  window.printway_dtf_nonce || server2.dtf_nonce || "");
+                f2.append("name",   name);
+                f2.append("whatsapp", digits);
+                f2.append("email",  email);
+                f2.append("cpf_cnpj",    cpfCnpjInput    ? cpfCnpjInput.value.replace(/\D/g,"")    : "");
+                f2.append("cep",         cepInput        ? cepInput.value.replace(/\D/g,"")         : "");
+                f2.append("street",      streetInput     ? streetInput.value.trim()                 : "");
+                f2.append("number",      numberInput     ? numberInput.value.trim()                 : "");
+                f2.append("complement",  complementInput ? complementInput.value.trim()              : "");
+                f2.append("neighborhood",neighborhoodInput ? neighborhoodInput.value.trim()         : "");
+                f2.append("city",        cityInput       ? cityInput.value.trim()                   : "");
+                f2.append("state",       stateInput      ? stateInput.value.trim().toUpperCase()    : "");
+                await fetch(server2.ajax_url || "/wp-admin/admin-ajax.php", {
+                  method: "POST", credentials: "same-origin",
+                  headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+                  body: f2.toString()
+                });
+              } catch(e) { /* não bloqueia */ }
+            }
 
-              whatsapp: formatWhatsapp(digits),
-
-              email: email,
-            });
-
+            persistSender({ name, whatsapp: formatWhatsapp(digits), email });
             setActiveStep(2);
           });
 

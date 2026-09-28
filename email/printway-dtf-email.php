@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Envio de pedidos
  * Description: Recebe os pedidos da calculadora DTF UV e envia os dados e anexos pelo wp_mail().
- * Version: 2.4.18
+ * Version: 2.4.19
  * Author: PrintWay
  */
 
@@ -2069,6 +2069,35 @@ add_action( 'wp_ajax_nopriv_' . PW_DTF_SAVE_CALCULATION_ACTION, 'pw_dtf_save_cal
  * O nome completo é formado exclusivamente por Nome + Sobrenome e nunca pelo
  * campo Nome de exibição.
  */
+/** Procura o cadastro do cliente no sistema de Pedidos por ID vinculado ou e-mail. */
+function pw_dtf_find_pedidos_client( $user_id, $email ) {
+	global $wpdb;
+	$table = $wpdb->prefix . 'pw_personalizados_clients';
+	if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+		return null;
+	}
+	$linked_id = get_user_meta( $user_id, '_pw_dtf_client_id', true );
+	if ( $linked_id ) {
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT object_id, payload FROM {$table} WHERE object_id = %s LIMIT 1", $linked_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( $row ) {
+			$p = json_decode( $row['payload'], true );
+			if ( is_array( $p ) ) { return array( 'id' => $row['object_id'], 'payload' => $p ); }
+		}
+	}
+	if ( $email ) {
+		$like = '%' . $wpdb->esc_like( '"email":"' . $email ) . '%';
+		$row  = $wpdb->get_row( $wpdb->prepare( "SELECT object_id, payload FROM {$table} WHERE payload LIKE %s LIMIT 1", $like ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( $row ) {
+			$p = json_decode( $row['payload'], true );
+			if ( is_array( $p ) ) {
+				update_user_meta( $user_id, '_pw_dtf_client_id', $row['object_id'] );
+				return array( 'id' => $row['object_id'], 'payload' => $p );
+			}
+		}
+	}
+	return null;
+}
+
 function pw_dtf_get_current_user_profile() {
 	check_ajax_referer( PW_DTF_NONCE_ACTION, 'nonce' );
 
@@ -2076,28 +2105,149 @@ function pw_dtf_get_current_user_profile() {
 		wp_send_json_error( array( 'message' => 'Usuário não está logado.' ), 401 );
 	}
 
-	$user       = wp_get_current_user();
-	$first_name = trim( (string) get_user_meta( $user->ID, 'first_name', true ) );
-	$last_name  = trim( (string) get_user_meta( $user->ID, 'last_name', true ) );
+	$user = wp_get_current_user();
+	$uid  = (int) $user->ID;
 
-	if ( '' === $first_name ) {
-		$first_name = trim( (string) get_user_meta( $user->ID, 'billing_first_name', true ) );
-	}
-	if ( '' === $last_name ) {
-		$last_name = trim( (string) get_user_meta( $user->ID, 'billing_last_name', true ) );
+	$first_name = trim( (string) get_user_meta( $uid, 'first_name', true ) );
+	$last_name  = trim( (string) get_user_meta( $uid, 'last_name', true ) );
+	if ( '' === $first_name ) { $first_name = trim( (string) get_user_meta( $uid, 'billing_first_name', true ) ); }
+	if ( '' === $last_name )  { $last_name  = trim( (string) get_user_meta( $uid, 'billing_last_name', true ) ); }
+
+	$whatsapp     = (string) get_user_meta( $uid, 'billing_phone', true );
+	$digits_only  = static function( $v ) { return preg_replace( '/\D/', '', (string) $v ); };
+	$cpf          = $digits_only( get_user_meta( $uid, 'billing_cpf', true ) );
+	$cnpj         = $digits_only( get_user_meta( $uid, 'billing_cnpj', true ) );
+	$cpf_cnpj     = $cpf ?: $cnpj;
+	$cep          = $digits_only( get_user_meta( $uid, 'billing_postcode', true ) );
+	$street       = trim( (string) get_user_meta( $uid, 'billing_address_1', true ) );
+	$number       = trim( (string) get_user_meta( $uid, 'billing_number', true ) );
+	$complement   = trim( (string) get_user_meta( $uid, 'billing_address_2', true ) );
+	$neighborhood = trim( (string) get_user_meta( $uid, 'billing_neighborhood', true ) );
+	$city         = trim( (string) get_user_meta( $uid, 'billing_city', true ) );
+	$state        = trim( (string) get_user_meta( $uid, 'billing_state', true ) );
+	$client_type  = 'direto';
+
+	/* Sync from Pedidos client record when WP meta has gaps. */
+	if ( ! $cpf_cnpj || ! $cep || ! $street || ! $number || ! $neighborhood || ! $city || ! $state ) {
+		$found = pw_dtf_find_pedidos_client( $uid, $user->user_email );
+		if ( $found ) {
+			$cp = $found['payload'];
+			$ca = $cp['address'] ?? array();
+			if ( ! $cpf_cnpj && ! empty( $cp['document'] ) ) { $cpf_cnpj     = $digits_only( $cp['document'] ); }
+			if ( ! $cep          && ! empty( $ca['cep'] ) )          { $cep          = $digits_only( $ca['cep'] ); }
+			if ( ! $street       && ! empty( $ca['street'] ) )       { $street       = (string) $ca['street']; }
+			if ( ! $number       && ! empty( $ca['number'] ) )       { $number       = (string) $ca['number']; }
+			if ( ! $complement   && ! empty( $ca['complement'] ) )   { $complement   = (string) $ca['complement']; }
+			if ( ! $neighborhood && ! empty( $ca['neighborhood'] ) ) { $neighborhood = (string) $ca['neighborhood']; }
+			if ( ! $city         && ! empty( $ca['city'] ) )         { $city         = (string) $ca['city']; }
+			if ( ! $state        && ! empty( $ca['state'] ) )        { $state        = (string) $ca['state']; }
+			if ( ! empty( $cp['clientType'] ) ) { $client_type = 'revenda' === $cp['clientType'] ? 'revenda' : 'direto'; }
+		}
 	}
 
-	wp_send_json_success(
-		array(
-			'id'         => (int) $user->ID,
-			'first_name' => $first_name,
-			'last_name'  => $last_name,
-			'full_name'  => trim( $first_name . ' ' . $last_name ),
-			'email'      => (string) $user->user_email,
-			'whatsapp'   => (string) get_user_meta( $user->ID, 'billing_phone', true ),
-		)
-	);
+	$missing = array();
+	if ( ! trim( $first_name . ' ' . $last_name ) ) { $missing[] = 'name'; }
+	if ( ! $whatsapp )     { $missing[] = 'whatsapp'; }
+	if ( ! $user->user_email ) { $missing[] = 'email'; }
+	if ( ! $cpf_cnpj )    { $missing[] = 'cpf_cnpj'; }
+	if ( ! $cep )         { $missing[] = 'cep'; }
+	if ( ! $street )      { $missing[] = 'street'; }
+	if ( ! $number )      { $missing[] = 'number'; }
+	if ( ! $neighborhood ){ $missing[] = 'neighborhood'; }
+	if ( ! $city )        { $missing[] = 'city'; }
+	if ( ! $state )       { $missing[] = 'state'; }
+
+	wp_send_json_success( array(
+		'id'                   => $uid,
+		'first_name'           => $first_name,
+		'last_name'            => $last_name,
+		'full_name'            => trim( $first_name . ' ' . $last_name ),
+		'email'                => (string) $user->user_email,
+		'whatsapp'             => $whatsapp,
+		'cpf_cnpj'             => $cpf_cnpj,
+		'cep'                  => $cep,
+		'address_street'       => $street,
+		'address_number'       => $number,
+		'address_complement'   => $complement,
+		'address_neighborhood' => $neighborhood,
+		'address_city'         => $city,
+		'address_state'        => $state,
+		'client_type'          => $client_type,
+		'missing_required'     => $missing,
+	) );
 }
+
+function pw_dtf_save_user_profile() {
+	check_ajax_referer( PW_DTF_NONCE_ACTION, 'nonce' );
+	if ( ! is_user_logged_in() ) {
+		wp_send_json_error( array( 'message' => 'Não autenticado.' ), 401 );
+	}
+	$uid         = get_current_user_id();
+	$full_name   = sanitize_text_field( wp_unslash( $_POST['name']         ?? '' ) );
+	$whatsapp    = preg_replace( '/\D/', '', sanitize_text_field( wp_unslash( $_POST['whatsapp']    ?? '' ) ) );
+	$cpf_cnpj    = preg_replace( '/\D/', '', sanitize_text_field( wp_unslash( $_POST['cpf_cnpj']   ?? '' ) ) );
+	$cep         = preg_replace( '/\D/', '', sanitize_text_field( wp_unslash( $_POST['cep']         ?? '' ) ) );
+	$street      = sanitize_text_field( wp_unslash( $_POST['street']       ?? '' ) );
+	$number      = sanitize_text_field( wp_unslash( $_POST['number']       ?? '' ) );
+	$complement  = sanitize_text_field( wp_unslash( $_POST['complement']   ?? '' ) );
+	$neighborhood = sanitize_text_field( wp_unslash( $_POST['neighborhood'] ?? '' ) );
+	$city        = sanitize_text_field( wp_unslash( $_POST['city']         ?? '' ) );
+	$state       = strtoupper( sanitize_text_field( wp_unslash( $_POST['state'] ?? '' ) ) );
+
+	$name_parts  = explode( ' ', $full_name, 2 );
+	$first_name  = trim( $name_parts[0] ?? '' );
+	$last_name   = trim( $name_parts[1] ?? '' );
+
+	if ( $first_name ) {
+		update_user_meta( $uid, 'first_name', $first_name );
+		update_user_meta( $uid, 'billing_first_name', $first_name );
+	}
+	if ( $last_name ) {
+		update_user_meta( $uid, 'last_name', $last_name );
+		update_user_meta( $uid, 'billing_last_name', $last_name );
+	}
+	if ( $whatsapp )      { update_user_meta( $uid, 'billing_phone', $whatsapp ); }
+	if ( strlen( $cpf_cnpj ) === 11 ) { update_user_meta( $uid, 'billing_cpf', $cpf_cnpj ); }
+	if ( strlen( $cpf_cnpj ) === 14 ) { update_user_meta( $uid, 'billing_cnpj', $cpf_cnpj ); }
+	if ( $cep )           { update_user_meta( $uid, 'billing_postcode', $cep ); }
+	if ( $street )        { update_user_meta( $uid, 'billing_address_1', $street ); }
+	if ( $number )        { update_user_meta( $uid, 'billing_number', $number ); }
+	update_user_meta( $uid, 'billing_address_2', $complement );
+	if ( $neighborhood )  { update_user_meta( $uid, 'billing_neighborhood', $neighborhood ); }
+	if ( $city )          { update_user_meta( $uid, 'billing_city', $city ); }
+	if ( $state )         { update_user_meta( $uid, 'billing_state', $state ); }
+
+	/* Sync para o cadastro de cliente no sistema de Pedidos. */
+	$user  = get_userdata( $uid );
+	$found = pw_dtf_find_pedidos_client( $uid, $user ? $user->user_email : '' );
+	if ( $found ) {
+		global $wpdb;
+		$table   = $wpdb->prefix . 'pw_personalizados_clients';
+		$payload = $found['payload'];
+		if ( $full_name )   { $payload['name']     = $full_name; }
+		if ( $whatsapp )    { $payload['phone']    = $whatsapp; }
+		if ( $cpf_cnpj )    { $payload['document'] = $cpf_cnpj; }
+		$addr = $payload['address'] ?? array();
+		if ( $cep )         { $addr['cep']          = $cep; }
+		if ( $street )      { $addr['street']       = $street; }
+		if ( $number )      { $addr['number']       = $number; }
+		$addr['complement'] = $complement;
+		if ( $neighborhood ){ $addr['neighborhood'] = $neighborhood; }
+		if ( $city )        { $addr['city']         = $city; }
+		if ( $state )       { $addr['state']        = $state; }
+		$payload['address'] = $addr;
+		$wpdb->update(
+			$table,
+			array( 'name' => (string) ( $payload['name'] ?? '' ), 'payload' => wp_json_encode( $payload ), 'updated_at' => current_time( 'mysql', true ) ),
+			array( 'object_id' => $found['id'] ),
+			array( '%s', '%s', '%s' ),
+			array( '%s' )
+		);
+	}
+
+	wp_send_json_success( array( 'saved' => true ) );
+}
+add_action( 'wp_ajax_printway_dtf_save_user_profile', 'pw_dtf_save_user_profile' );
 add_action( 'wp_ajax_' . PW_DTF_VALIDATE_PAY_LATER_ACTION, 'pw_dtf_validate_pay_later' );
 add_action( 'wp_ajax_printway_dtf_get_pay_later_access', 'pw_dtf_get_pay_later_access' );
 add_action( 'wp_ajax_printway_dtf_get_points_access', 'pw_dtf_get_points_access' );

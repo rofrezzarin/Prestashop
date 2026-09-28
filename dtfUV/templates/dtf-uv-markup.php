@@ -100,6 +100,53 @@
 
           </div>
 
+          <!-- Dados complementares: mostrados apenas se algum campo obrigatório faltar -->
+          <div id="pw-extra-profile-fields" style="display:none;margin-top:14px">
+            <div style="font-size:13px;font-weight:600;color:var(--primary);margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid #e2e8f0">Dados complementares obrigatórios</div>
+            <div class="pw-grid pw-identification-grid">
+              <div>
+                <label class="pw-field-label" for="sender-cpfcnpj">CPF ou CNPJ</label>
+                <input id="sender-cpfcnpj" class="pw-input" type="text" inputmode="numeric" maxlength="18" placeholder="000.000.000-00 ou 00.000.000/0000-00" autocomplete="off" />
+              </div>
+              <div>
+                <label class="pw-field-label" for="sender-cep">CEP <span class="muted" style="font-size:11px">(Enter para buscar)</span></label>
+                <input id="sender-cep" class="pw-input" type="text" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="off" />
+              </div>
+            </div>
+            <div id="pw-address-fields" style="display:none;margin-top:8px">
+              <div class="pw-grid pw-identification-grid">
+                <div>
+                  <label class="pw-field-label" for="sender-street">Logradouro</label>
+                  <input id="sender-street" class="pw-input" type="text" placeholder="Rua / Avenida..." autocomplete="off" />
+                </div>
+                <div>
+                  <label class="pw-field-label" for="sender-number">Número</label>
+                  <input id="sender-number" class="pw-input" type="text" placeholder="123" autocomplete="off" />
+                </div>
+              </div>
+              <div class="pw-grid pw-identification-grid" style="margin-top:8px">
+                <div>
+                  <label class="pw-field-label" for="sender-complement">Complemento <span class="muted">(opcional)</span></label>
+                  <input id="sender-complement" class="pw-input" type="text" placeholder="Apto, sala, bloco..." autocomplete="off" />
+                </div>
+                <div>
+                  <label class="pw-field-label" for="sender-neighborhood">Bairro</label>
+                  <input id="sender-neighborhood" class="pw-input" type="text" placeholder="Bairro" autocomplete="off" />
+                </div>
+              </div>
+              <div class="pw-grid pw-identification-grid" style="margin-top:8px">
+                <div>
+                  <label class="pw-field-label" for="sender-city">Cidade</label>
+                  <input id="sender-city" class="pw-input" type="text" placeholder="Cidade" autocomplete="off" />
+                </div>
+                <div>
+                  <label class="pw-field-label" for="sender-state">Estado (UF)</label>
+                  <input id="sender-state" class="pw-input" type="text" maxlength="2" placeholder="SP" autocomplete="off" />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div style="margin-top: 12px">
             <label class="pw-field-label" for="sender-instructions-main">
               Instruções ou informações complementares

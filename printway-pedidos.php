@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Módulo PrintWay — Pedidos de personalizados.
  *
@@ -19,7 +19,7 @@ if ( defined( 'PW_PERSONALIZADOS_MODULE_LOADED' ) ) {
 }
 
 define( 'PW_PERSONALIZADOS_MODULE_LOADED', true );
-define( 'PW_PERSONALIZADOS_VERSION', '1.32.349' );
+define( 'PW_PERSONALIZADOS_VERSION', '1.32.393' );
 define( 'PW_PERSONALIZADOS_DB_VERSION', '1.2.0' );
 define( 'PW_PERSONALIZADOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_PERSONALIZADOS_URL', plugin_dir_url( __FILE__ ) );
@@ -313,6 +313,7 @@ require_once __DIR__ . '/includes/arts-tiff.php';
 require_once __DIR__ . '/includes/arts-pdf.php';
 require_once __DIR__ . '/includes/mercadolivre-report.php';
 require_once __DIR__ . '/includes/shopee-report.php';
+require_once __DIR__ . '/includes/nfe-marketplace.php';
 
 /**
  * Usa a versão minificada de um asset quando ela existe e o site não está em
@@ -3268,6 +3269,230 @@ function pw_personalizados_tokens_status() {
 }
 add_action( 'wp_ajax_pw_personalizados_tokens_status', 'pw_personalizados_tokens_status' );
 
+/** Formata tempo restante/decorrido até/desde $expires_at em PT-BR. */
+function pw_personalizados_expiry_label( $expires_at ) {
+	$diff = (int) $expires_at - time();
+	if ( $diff <= 0 ) {
+		$ago = abs( $diff );
+		if ( $ago < 3600 )     return 'Expirou há ' . round( $ago / 60 ) . ' min';
+		if ( $ago < 86400 )    return 'Expirou há ' . round( $ago / 3600 ) . 'h';
+		return 'Expirou há ' . round( $ago / 86400 ) . ' dias';
+	}
+	if ( $diff < 3600 )        return 'Expira em ' . round( $diff / 60 ) . ' min';
+	if ( $diff < 86400 )       return 'Expira em ' . round( $diff / 3600 ) . 'h';
+	if ( $diff < 86400 * 30 )  return 'Expira em ' . round( $diff / 86400 ) . ' dias';
+	return 'Expira em ' . round( $diff / ( 86400 * 30 ) ) . ' meses';
+}
+
+/** Verifica conectividade real das integrações via chamada HTTP a cada API. */
+function pw_personalizados_tokens_verify() {
+	pw_personalizados_ajax_guard();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Somente administradores.' ), 403 );
+		return;
+	}
+
+	$results = array();
+	$timeout = 8;
+
+	// WhatsApp — GET /v19.0/{phone_id} com Bearer token
+	$wa_token    = get_option( 'pw_personalizados_wa_token', '' );
+	$wa_phone_id = get_option( 'pw_personalizados_wa_phone_id', '' );
+	if ( ! $wa_token || ! $wa_phone_id ) {
+		$results['whatsapp'] = array( 'status' => 'missing', 'label' => 'Sem token configurado' );
+	} else {
+		$r    = wp_remote_get( 'https://graph.facebook.com/v19.0/' . rawurlencode( $wa_phone_id ), array(
+			'headers' => array( 'Authorization' => 'Bearer ' . $wa_token ),
+			'timeout' => $timeout,
+		) );
+		$code = is_wp_error( $r ) ? 0 : wp_remote_retrieve_response_code( $r );
+		if ( is_wp_error( $r ) ) {
+			$results['whatsapp'] = array( 'status' => 'error', 'label' => '✗ Sem conexão com a Meta' );
+		} elseif ( 200 === $code ) {
+			$body = json_decode( wp_remote_retrieve_body( $r ), true );
+			$num  = $body['display_phone_number'] ?? $body['verified_name'] ?? '';
+			$results['whatsapp'] = array( 'status' => 'online', 'label' => '✓ Online' . ( $num ? ' — ' . $num : '' ) );
+		} else {
+			$body     = json_decode( wp_remote_retrieve_body( $r ), true );
+			$err_code = $body['error']['code'] ?? 0;
+			$err_msg  = $body['error']['message'] ?? '';
+			// Tenta extrair data de expiração da mensagem da Meta ("Session has expired on Fri, 25-Sep-26 22:00:00 PDT")
+			$months_pt = array( 'Jan'=>'Jan','Feb'=>'Fev','Mar'=>'Mar','Apr'=>'Abr','May'=>'Mai','Jun'=>'Jun',
+			                    'Jul'=>'Jul','Aug'=>'Ago','Sep'=>'Set','Oct'=>'Out','Nov'=>'Nov','Dec'=>'Dez' );
+			if ( preg_match( '/Session has expired on \w+, (\d{1,2})-(\w{3})-(\d{2}) (\d{2}:\d{2})/', $err_msg, $m ) ) {
+				$mes = $months_pt[ $m[2] ] ?? $m[2];
+				$label = 'Token expirado em ' . $m[1] . '/' . $mes . ' às ' . $m[4];
+			} elseif ( 190 === $err_code || stripos( $err_msg, 'access token' ) !== false ) {
+				$label = 'Token expirado — renove em developers.facebook.com';
+			} elseif ( stripos( $err_msg, 'Invalid OAuth' ) !== false ) {
+				$label = 'Token OAuth inválido';
+			} else {
+				$label = 'Erro de autenticação (HTTP ' . $code . ')';
+			}
+			$results['whatsapp'] = array( 'status' => 'error', 'label' => '✗ ' . $label );
+		}
+	}
+
+	// Anthropic — GET /v1/models com x-api-key
+	$anthropic_key = get_option( 'pw_ml_anthropic_api_key', '' );
+	if ( ! $anthropic_key ) {
+		$results['anthropic'] = array( 'status' => 'missing', 'label' => 'Sem API key' );
+	} else {
+		$r    = wp_remote_get( 'https://api.anthropic.com/v1/models', array(
+			'headers' => array( 'x-api-key' => $anthropic_key, 'anthropic-version' => '2023-06-01' ),
+			'timeout' => $timeout,
+		) );
+		$code = is_wp_error( $r ) ? 0 : wp_remote_retrieve_response_code( $r );
+		if ( is_wp_error( $r ) ) {
+			$results['anthropic'] = array( 'status' => 'error', 'label' => '✗ Sem conexão com Anthropic' );
+		} elseif ( 200 === $code ) {
+			$results['anthropic'] = array( 'status' => 'online', 'label' => '✓ API key válida' );
+		} else {
+			$results['anthropic'] = array( 'status' => 'error', 'label' => '✗ API key inválida ou expirada' );
+		}
+	}
+
+	// Melhor Envio — GET /api/v2/me com Bearer token descriptografado
+	$me_token = function_exists( 'pw_personalizados_melhorenvio_token_value' )
+		? pw_personalizados_melhorenvio_token_value()
+		: '';
+	$me_ua = function_exists( 'pw_personalizados_melhorenvio_user_agent' )
+		? pw_personalizados_melhorenvio_user_agent()
+		: 'PrintWay/1.0';
+	if ( ! $me_token ) {
+		$me_configured = (bool) get_option( 'pw_personalizados_melhorenvio_secret', false );
+		$results['melhorenvio'] = $me_configured
+			? array( 'status' => 'error', 'label' => '✗ Não foi possível ler o token' )
+			: array( 'status' => 'missing', 'label' => 'Sem token' );
+	} else {
+		$r    = wp_remote_get( 'https://melhorenvio.com.br/api/v2/me', array(
+			'headers' => array(
+				'Authorization' => 'Bearer ' . $me_token,
+				'Accept'        => 'application/json',
+				'User-Agent'    => $me_ua,
+			),
+			'timeout' => $timeout,
+		) );
+		$code = is_wp_error( $r ) ? 0 : wp_remote_retrieve_response_code( $r );
+		if ( is_wp_error( $r ) ) {
+			$results['melhorenvio'] = array( 'status' => 'error', 'label' => '✗ Sem conexão' );
+		} elseif ( 200 === $code ) {
+			$body = json_decode( wp_remote_retrieve_body( $r ), true );
+			$name = trim( ( $body['firstname'] ?? '' ) . ' ' . ( $body['lastname'] ?? '' ) ) ?: ( $body['email'] ?? 'Online' );
+			$results['melhorenvio'] = array( 'status' => 'online', 'label' => '✓ Online — ' . $name );
+		} else {
+			$results['melhorenvio'] = array( 'status' => 'error', 'label' => '✗ Token inválido ou expirado' );
+		}
+	}
+
+	// Frenet — verifica token via POST à API de cotação
+	$frenet_token = get_option( 'pw_personalizados_frenet_secret', '' );
+	if ( ! $frenet_token ) {
+		$legacy_frenet = get_option( 'woocommerce_frenet_settings', array() );
+		$frenet_token  = ( is_array( $legacy_frenet ) && ! empty( $legacy_frenet['token'] ) && 'no' !== ( $legacy_frenet['enabled'] ?? 'yes' ) )
+			? $legacy_frenet['token'] : '';
+	}
+	if ( ! $frenet_token ) {
+		$results['frenet'] = array( 'status' => 'missing', 'label' => 'Sem token' );
+	} else {
+		$fr = wp_remote_post( 'https://api.frenet.com.br/shipping/quote', array(
+			'headers' => array( 'Content-Type' => 'application/json', 'TOKEN' => $frenet_token ),
+			'body'    => wp_json_encode( array(
+				'SellerCEP' => '01310100', 'RecipientCEP' => '04538133',
+				'ShipmentInvoiceValue' => 100.0,
+				'ShippingItemArray' => array( array( 'Height'=>5,'Length'=>15,'Width'=>15,'Weight'=>0.3,'Quantity'=>1 ) ),
+			) ),
+			'timeout' => $timeout,
+		) );
+		if ( is_wp_error( $fr ) ) {
+			$results['frenet'] = array( 'status' => 'error', 'label' => '✗ Sem conexão com Frenet' );
+		} else {
+			$fr_code = wp_remote_retrieve_response_code( $fr );
+			$fr_body = json_decode( wp_remote_retrieve_body( $fr ), true );
+			if ( 200 === $fr_code && isset( $fr_body['ShippingResult'] ) ) {
+				$results['frenet'] = array( 'status' => 'online', 'label' => '✓ Frenet conectado' );
+			} elseif ( isset( $fr_body['Message'] ) && strlen( $fr_body['Message'] ) > 0 ) {
+				$results['frenet'] = array( 'status' => 'error', 'label' => '✗ ' . $fr_body['Message'] );
+			} elseif ( 200 === $fr_code ) {
+				$results['frenet'] = array( 'status' => 'online', 'label' => '✓ Frenet conectado' );
+			} else {
+				$results['frenet'] = array( 'status' => 'error', 'label' => '✗ Erro Frenet (HTTP ' . $fr_code . ')' );
+			}
+		}
+	}
+
+	// Shopee — usa função do módulo se disponível
+	if ( function_exists( 'pw_shopee_access_token_valid' ) ) {
+		$sh_s    = get_option( 'pw_printway_shopee_settings', array() );
+		if ( ! is_array( $sh_s ) ) $sh_s = array();
+		$sh_exp  = isset( $sh_s['expires_at'] ) ? pw_personalizados_expiry_label( (int) $sh_s['expires_at'] ) : '';
+		$sh_name = ! empty( $sh_s['shop_name'] ) ? ' — ' . $sh_s['shop_name'] : '';
+		$results['shopee'] = pw_shopee_access_token_valid()
+			? array( 'status' => 'online', 'label' => '✓ Conectado' . $sh_name . ( $sh_exp ? ' · ' . $sh_exp : '' ) )
+			: array( 'status' => 'error',  'label' => '✗ Token expirado' . ( $sh_exp ? ' · ' . $sh_exp : '' ) );
+	} else {
+		$results['shopee'] = array( 'status' => 'missing', 'label' => 'Módulo não carregado' );
+	}
+
+	// Mercado Livre — OAuth, verifica via GET /users/me
+	$ml_s = get_option( 'pw_printway_ml_settings', array() );
+	if ( ! is_array( $ml_s ) ) $ml_s = array();
+	$ml_token = function_exists( 'pw_ml_access_token_value' ) ? pw_ml_access_token_value() : ( $ml_s['access_token'] ?? '' );
+	if ( ! $ml_token || strlen( $ml_token ) <= 10 ) {
+		$results['mercadolivre'] = array( 'status' => 'missing', 'label' => 'Não conectado' );
+	} else {
+		$ml_exp  = isset( $ml_s['expires_at'] ) ? pw_personalizados_expiry_label( (int) $ml_s['expires_at'] ) : '';
+		$ml_r    = wp_remote_get( 'https://api.mercadolibre.com/users/me', array(
+			'headers' => array( 'Authorization' => 'Bearer ' . $ml_token ),
+			'timeout' => $timeout,
+		) );
+		$ml_code = is_wp_error( $ml_r ) ? 0 : wp_remote_retrieve_response_code( $ml_r );
+		if ( is_wp_error( $ml_r ) ) {
+			$results['mercadolivre'] = array( 'status' => 'error', 'label' => '✗ Sem conexão com Mercado Livre' );
+		} elseif ( 200 === $ml_code ) {
+			$ml_body = json_decode( wp_remote_retrieve_body( $ml_r ), true );
+			$ml_nick = ! empty( $ml_body['nickname'] ) ? ' — ' . $ml_body['nickname'] : ( ! empty( $ml_s['nickname'] ) ? ' — ' . $ml_s['nickname'] : '' );
+			$results['mercadolivre'] = array( 'status' => 'online', 'label' => '✓ Online' . $ml_nick . ( $ml_exp ? ' · ' . $ml_exp : '' ) );
+		} else {
+			$results['mercadolivre'] = array( 'status' => 'error', 'label' => '✗ Token inválido ou expirado' . ( $ml_exp ? ' · ' . $ml_exp : '' ) );
+		}
+	}
+
+	// NF-e e Pix — verificação de configuração apenas
+	$nfe_cert = get_option( 'pw_printway_nfe_certificate', '' );
+	if ( ! $nfe_cert ) {
+		$nfe_s    = get_option( 'pw_printway_nfe_settings', array() );
+		$nfe_cert = is_array( $nfe_s ) && ( ! empty( $nfe_s['certificate'] ) || ! empty( $nfe_s['cert_path'] ) );
+	}
+	$results['nfe'] = $nfe_cert
+		? array( 'status' => 'ok', 'label' => 'Certificado configurado' )
+		: array( 'status' => 'missing', 'label' => 'Sem certificado' );
+
+	$pix_s   = get_option( 'pw_printway_pix_settings', array() );
+	$pix_key = trim( isset( $pix_s['key'] ) ? $pix_s['key'] : ( isset( $pix_s['pix_key'] ) ? $pix_s['pix_key'] : '' ) );
+	if ( ! $pix_key ) {
+		$results['pix'] = array( 'status' => 'missing', 'label' => 'Sem chave Pix' );
+	} else {
+		$digits = preg_replace( '/[^0-9]/', '', $pix_key );
+		if ( preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $pix_key ) ) {
+			$results['pix'] = array( 'status' => 'online', 'label' => '✓ Chave aleatória válida' );
+		} elseif ( filter_var( $pix_key, FILTER_VALIDATE_EMAIL ) ) {
+			$results['pix'] = array( 'status' => 'online', 'label' => '✓ Chave e-mail válida' );
+		} elseif ( preg_match( '/^\+55\d{10,11}$/', $pix_key ) || ( strlen( $digits ) === 11 && $digits[2] === '9' ) ) {
+			$results['pix'] = array( 'status' => 'online', 'label' => '✓ Chave celular válida' );
+		} elseif ( strlen( $digits ) === 11 ) {
+			$results['pix'] = array( 'status' => 'online', 'label' => '✓ Chave CPF válida' );
+		} elseif ( strlen( $digits ) === 14 ) {
+			$results['pix'] = array( 'status' => 'online', 'label' => '✓ Chave CNPJ válida' );
+		} else {
+			$results['pix'] = array( 'status' => 'error', 'label' => '✗ Formato de chave inválido' );
+		}
+	}
+
+	wp_send_json_success( array( 'tokens' => $results ) );
+}
+add_action( 'wp_ajax_pw_personalizados_tokens_verify', 'pw_personalizados_tokens_verify' );
+
 function pw_personalizados_token_config_get() {
 	pw_personalizados_ajax_guard();
 	if ( ! current_user_can( 'manage_options' ) ) {
@@ -3318,7 +3543,7 @@ function pw_personalizados_token_config_get() {
 			'label' => 'NF-e (certificado)',
 			'type'  => 'info',
 			'note'  => 'O certificado digital A1 e a senha são carregados na página dedicada da NF-e. O sistema não armazena o arquivo — apenas a validade é verificada.',
-			'link'  => admin_url( 'admin.php?page=pw-printway-nfe' ),
+			'link'  => '#view:nfe',
 			'link_label' => 'Configurar NF-e →',
 			'fields' => array(),
 		),

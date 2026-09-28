@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.392
+// PW_BUILD_VERSION: 1.32.393
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -7078,9 +7078,36 @@
   function renderClientWpLoginInfo(client) {
     const loginTab = $('#pw-client-login-tab');
     const loginTabInfo = $('#pw-client-login-tab-info');
-    if (!client || !client.wpUserId) {
+    if (!client) {
       if (loginTab) loginTab.hidden = true;
       if (loginTabInfo) { loginTabInfo.innerHTML = ''; loginTabInfo.removeAttribute('data-wp-user-id'); }
+      return;
+    }
+    if (!client.wpUserId) {
+      if (loginTab) loginTab.hidden = false;
+      if (loginTabInfo) {
+        loginTabInfo.removeAttribute('data-wp-user-id');
+        loginTabInfo.innerHTML =
+          '<div style="text-align:center;padding:24px 16px">' +
+          '<p style="color:var(--pw-text-soft,#64748b);margin:0 0 16px">Este cliente não tem login de acesso ao sistema.</p>' +
+          '<button type="button" class="pw-btn pw-btn-primary" id="pw-tab-create-wp-login">Criar login</button>' +
+          '</div>';
+        const tabCreateBtn = loginTabInfo.querySelector('#pw-tab-create-wp-login');
+        if (tabCreateBtn) tabCreateBtn.addEventListener('click', () => {
+          const c = getClients().find(x => String(x.id) === String(editingClientId));
+          if (!c) return;
+          const existingInfo = $('#pw-wp-login-existing-info');
+          const loginForm = $('#pw-wp-login-form');
+          const confirmBtn = $('#pw-wp-login-confirm');
+          $('#pw-wp-login-modal-title').textContent = 'Criar login para ' + (c.name || 'cliente');
+          $('#pw-wp-login-email').value = c.email || '';
+          $('#pw-wp-login-role').value = c.customerType === 'revenda' ? 'revendedor' : 'customer';
+          if (existingInfo) { existingInfo.hidden = true; existingInfo.innerHTML = ''; }
+          if (loginForm) loginForm.hidden = false;
+          if (confirmBtn) { confirmBtn.textContent = 'Criar login'; confirmBtn.disabled = false; }
+          openModal('pw-wp-login-modal');
+        });
+      }
       return;
     }
     if (loginTab) loginTab.hidden = false;
@@ -14434,7 +14461,7 @@
   });
 
   $('#pw-wp-login-confirm') && $('#pw-wp-login-confirm').addEventListener('click', async () => {
-    const id = bulkSelections.client[0];
+    const id = bulkSelections.client[0] || editingClientId;
     if (!id) return;
     const client = getClients().find(c => String(c.id) === String(id));
     if (!client) return;
@@ -14477,6 +14504,10 @@
         showMessage('Login criado com sucesso! E-mail de acesso enviado para ' + d.email + '.', 'success');
       }
       closeModal('pw-wp-login-modal', true);
+      if (editingClientId) {
+        const updatedClient = getClients().find(c => String(c.id) === String(editingClientId));
+        if (updatedClient) renderClientWpLoginInfo(updatedClient);
+      }
     } catch (e) {
       showMessage('Erro de conexão ao criar login.', 'error');
       if (confirmBtn) confirmBtn.disabled = false;

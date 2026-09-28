@@ -205,3 +205,12 @@ pedidos/
 - `pedidos.min.js` não é minificado — é cópia funcional de `pedidos.js`.
   Manter os dois arquivos sempre sincronizados.
 
+---
+
+### 2026-09-28 — v1.32.386 / printway.php 2.2.80
+
+**O que foi feito:**
+- Corrigido encoding de acentos no PDF NF-e Marketplace (`nfe-marketplace.php` linha 233):
+  `mb_strlen`/`mb_substr` substituídos por `strlen`/`substr` — a string já está em
+  ISO-8859-1 após `$e()` (single-byte), as funções `mb_*` corrompiam bytes como `á` (0xE1).
+

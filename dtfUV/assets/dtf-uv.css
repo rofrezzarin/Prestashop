@@ -184,7 +184,6 @@
         box-shadow: 0 2px 8px rgba(11,91,215,.06);
         transition: border-color .2s, box-shadow .2s, background .2s, transform .2s;
         box-sizing: border-box;
-        overflow: hidden;
       }
 
       /* Linha colorida no topo */

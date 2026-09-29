@@ -368,6 +368,21 @@ add_action( 'init', 'pw_dtf_register_order_storage' );
 add_action( 'admin_menu', 'pw_dtf_register_admin_menu' );
 add_filter( 'woocommerce_account_menu_items', 'pw_dtf_remove_legacy_account_menu', 999 );
 add_action( 'woocommerce_account_orders_endpoint', 'pw_dtf_render_orders_tabs', 1 );
+add_action( 'template_redirect', 'pw_dtf_default_orders_to_dtf_uv' );
+
+function pw_dtf_default_orders_to_dtf_uv() {
+	if ( ! is_user_logged_in() ) {
+		return;
+	}
+	if ( ! function_exists( 'is_wc_endpoint_url' ) || ! is_wc_endpoint_url( 'orders' ) ) {
+		return;
+	}
+	if ( isset( $_GET['tipo'] ) ) {
+		return;
+	}
+	wp_safe_redirect( add_query_arg( 'tipo', 'dtf-uv', wc_get_account_endpoint_url( 'orders' ) ) );
+	exit;
+}
 
 function pw_dtf_remove_legacy_account_menu( $items ) {
 	unset( $items['pedidos-dtf-uv'] );
@@ -411,9 +426,9 @@ function pw_dtf_register_order_storage() {
 }
 
 function pw_dtf_render_orders_tabs() {
-	$type     = isset( $_GET['tipo'] ) ? sanitize_key( wp_unslash( $_GET['tipo'] ) ) : 'dtf-uv';
+	$type     = isset( $_GET['tipo'] ) ? sanitize_key( wp_unslash( $_GET['tipo'] ) ) : 'site';
 	$base_url = wc_get_account_endpoint_url( 'orders' );
-	$site_url = add_query_arg( 'tipo', 'site', $base_url );
+	$site_url = remove_query_arg( 'tipo', $base_url );
 	$dtf_url  = add_query_arg( 'tipo', 'dtf-uv', $base_url );
 
 	echo '<nav class="pw-dtf-order-tabs" aria-label="Tipos de pedidos" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 22px">';

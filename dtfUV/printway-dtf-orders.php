@@ -520,7 +520,7 @@ function pw_dtf_render_account_orders() {
 
 		$pay_info    = isset( $payment_status_labels[ $pay_status ] ) ? $payment_status_labels[ $pay_status ] : $payment_status_labels[''];
 		$is_paid     = 'paid' === $pay_status;
-		$can_pay     = ! $is_paid && $amount > 0;
+		$can_pay     = 'pending_mp' === $pay_status && $amount > 0;
 		$is_final    = $is_paid && in_array( $situacao, $finalizados_statuses, true );
 		$can_delete  = ! $is_paid && in_array( $situacao, $deletable_statuses, true );
 		$row_class   = $is_final ? 'pw-dtf-account-finalizado' : '';

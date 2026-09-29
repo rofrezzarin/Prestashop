@@ -2396,7 +2396,7 @@
             "Usuário: " +
             (user.display || user.login || "—") +
             " | Função: " +
-            (user.is_admin ? "Administrador" : "Usuário");
+            (user.role || (user.is_admin ? "Administrador" : "Usuário"));
         } else {
           info.innerHTML =
             '<a href="https://printway.com.br/minha-conta/">Crie seu login com CNPJ e torne-se um revendedor com preços especiais - clique aqui</a><span class="pw-login-note">Após o cadastro, sua conta ficará como Cliente. Para obter as vantagens de Revendedor, solicite a mudança para Usuário Revendedor (essa opção estará localizada dentro da sua área de usuário em Painel de Controle). O programa de pontos é exclusivo para pedidos realizados com login.</span>';

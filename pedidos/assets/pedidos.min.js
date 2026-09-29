@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.414
+// PW_BUILD_VERSION: 1.32.415
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -532,8 +532,10 @@
   }
   function paymentMethodDefinition(name, index) {
     const colors = ['#0f766e', '#1d4ed8', '#7c3aed', '#b45309', '#be123c', '#334155', '#15803d', '#9f1239'];
-    const words = String(name || '').trim().split(/\s+/).filter(Boolean);
-    const fallbackCode = (words.length > 1 ? words.map(word => word[0]).join('') : String(name || 'NOV').slice(0, 3)).replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || 'NOV';
+    const legacyNames = { 'P': 'Pix - Mercado Pago', 'PM': 'Pix - Mercado Pago' };
+    const resolvedName = legacyNames[String(name || '').trim()] || name;
+    const words = String(resolvedName || '').trim().split(/\s+/).filter(Boolean);
+    const fallbackCode = (words.length > 1 ? words.map(word => word[0]).join('') : String(resolvedName || 'NOV').slice(0, 3)).replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || 'NOV';
     const custom = getSettings().paymentMethodStyles[String(name || '')] || {};
     return { name: String(name || ''), code: String(custom.code || fallbackCode).replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || fallbackCode, color: /^#[0-9a-f]{6}$/i.test(custom.color || '') ? custom.color : colors[index % colors.length] };
   }
@@ -8228,11 +8230,20 @@
   }
 
   function ensureDefaultPaymentMethods() {
-    if (getPaymentMethods().length) return;
-    const names = ['Pix', 'Dinheiro', 'Cartão de crédito', 'Cartão de débito', 'Transferência bancária', 'Boleto', 'Outro'];
-    const records = names.map((name, index) => ({ id: 'payment-method-default-' + (index + 1), code: String(index + 1).padStart(4, '0'), name, active: true }));
-    writeStorage(STORAGE.paymentMethods, records);
-    writeStorage(STORAGE.paymentMethodSequence, records.length + 1);
+    const existing = getPaymentMethods();
+    if (!existing.length) {
+      const names = ['Pix', 'Dinheiro', 'Cartão de crédito', 'Cartão de débito', 'Transferência bancária', 'Boleto', 'Pix - Mercado Pago', 'Outro'];
+      const records = names.map((name, index) => ({ id: 'payment-method-default-' + (index + 1), code: String(index + 1).padStart(4, '0'), name, active: true }));
+      writeStorage(STORAGE.paymentMethods, records);
+      writeStorage(STORAGE.paymentMethodSequence, records.length + 1);
+      return;
+    }
+    const hasMP = existing.some(m => /mercado\s*pago/i.test(m.name) || m.name === 'P');
+    if (!hasMP) {
+      const seq = existing.length + 1;
+      const newEntry = { id: 'payment-method-mp-pix', code: String(seq).padStart(4, '0'), name: 'Pix - Mercado Pago', active: true };
+      writeStorage(STORAGE.paymentMethods, [...existing, newEntry]);
+    }
   }
 
   function populatePaymentMethodSelects(selectedOrder, selectedFinal) {
@@ -11795,7 +11806,7 @@
   function confirmLinkedDeletion(kind, records) {
     const blocks = records.map(record => ({ record, topics: linkedDeletionTopics(kind, record) })).filter(item => item.topics.length);
     const cascadeClients = kind === 'order' ? orderCascadeClientOptions(records) : [];
-    if (!blocks.length) return Promise.resolve(null);
+    if (!blocks.length && kind !== 'order') return Promise.resolve(null);
     const modal        = $('#pw-linked-delete-modal');
     const list         = $('#pw-linked-delete-list');
     const help         = $('#pw-linked-delete-help');
@@ -11823,8 +11834,13 @@
         const c = orderLinkedActiveClient(block.record);
         if (c && !linkedClients.find(x => String(x.id) === String(c.id))) linkedClients.push(c);
       });
-      list.innerHTML = '';
-      list.hidden = true;
+      if (!blocks.length) {
+        list.innerHTML = '<p style="color:#475569">Mover <strong>' + records.length + '</strong> pedido(s) selecionado(s) para a Lixeira?</p>';
+        list.hidden = false;
+      } else {
+        list.innerHTML = '';
+        list.hidden = true;
+      }
       const allPayments = [];
       blocks.forEach(block => {
         const order = block.record;

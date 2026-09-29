@@ -65,25 +65,31 @@ Versão, funções novas, correções de lógica — tudo nos dois arquivos.
 
 ---
 
-### REGRA 3 — ZIP de entrega: caminho completo `wp-content/plugins/printway/`
+### REGRA 3 — ZIP de entrega: caminhos relativos à pasta `printway/`
 
-#### Regra principal — SEMPRE usar diretório temporário com caminho completo
+#### Regra principal — SEMPRE enviar só os arquivos alterados
 
-O usuário **sempre extrai o ZIP na raiz do site WordPress** (ex: `/public_html/`).
-Portanto, todos os ZIPs devem ter o caminho completo `wp-content/plugins/printway/`
-como prefixo interno.
+**NUNCA enviar o plugin completo.** O ZIP deve conter **exclusivamente os arquivos que
+foram modificados naquela sessão**, com os caminhos internos corretos.
 
-**NUNCA enviar o plugin completo.** Só os arquivos alterados naquela sessão.
+Enviar arquivos que não mudaram é desperdício e pode sobrescrever versões mais novas
+que o usuário tenha instalado por outro meio.
+
+#### Como o usuário instala
+
+O usuário extrai o ZIP **diretamente dentro da pasta `printway/`**:
+```
+/domains/printway.com.br/public_html/wp-content/plugins/printway/  ← raiz de extração
+```
+
+Portanto o ZIP deve ter caminhos **relativos à pasta `printway/`**, **SEM** incluir
+`printway/` como prefixo.
 
 #### Estrutura real do plugin no servidor
 
-```
-/domains/printway.com.br/public_html/wp-content/plugins/printway/
-```
-
 Módulos (subpastas) atuais:
 ```
-printway/
+printway/               ← raiz onde o ZIP é extraído
 ├── pedidos/
 │   ├── assets/         ← pedidos.js, pedidos.min.js, pedidos.css
 │   ├── templates/      ← pedidos-app.php
@@ -102,55 +108,67 @@ printway/
 
 > ⚠️ A pasta `email/` foi removida. O arquivo foi movido para `dtfUV/printway-dtf-orders.php`.
 
-#### Como criar o ZIP corretamente (único método aceito)
+#### Como criar o ZIP corretamente
 
-Usar diretório temporário para montar a estrutura completa, depois zipar:
-
+**Comando padrão (a partir de `/home/user/Prestashop`):**
 ```bash
-BUILD=/tmp/claude-0/build-entrega
-rm -rf "$BUILD"
-BASE="$BUILD/wp-content/plugins/printway"
+cd /home/user/Prestashop
+zip entrega.zip arquivo1/caminho.php arquivo2/caminho.js ...
+```
 
-# Criar as pastas necessárias
-mkdir -p "$BASE/pedidos/assets" "$BASE/pedidos/templates"
+**Exemplo — alterando só arquivos do módulo `pedidos` (REGRA 1):**
+```bash
+cd /home/user/Prestashop
+zip entrega.zip \
+  pedidos/assets/pedidos.js \
+  pedidos/assets/pedidos.min.js \
+  pedidos/assets/pedidos.css \
+  pedidos/templates/pedidos-app.php \
+  pedidos/printway-pedidos.php
+```
 
-# Copiar só os arquivos alterados
-cp /home/user/Prestashop/pedidos/assets/pedidos.js "$BASE/pedidos/assets/"
-cp /home/user/Prestashop/pedidos/assets/pedidos.min.js "$BASE/pedidos/assets/"
-cp /home/user/Prestashop/pedidos/assets/pedidos.css "$BASE/pedidos/assets/"
-cp /home/user/Prestashop/pedidos/templates/pedidos-app.php "$BASE/pedidos/templates/"
-cp /home/user/Prestashop/pedidos/printway-pedidos.php "$BASE/pedidos/"
-
-# Zipar a partir do diretório temporário
-cd "$BUILD" && zip -r /tmp/claude-0/.../entrega.zip wp-content/
+**Exemplo — alterando um arquivo do módulo `dtfUV`:**
+```bash
+cd /home/user/Prestashop
+zip entrega.zip dtfUV/printway-dtf-orders.php
 ```
 
 O ZIP resultante terá internamente:
 ```
-wp-content/plugins/printway/pedidos/assets/pedidos.js    ✓
-wp-content/plugins/printway/pedidos/assets/pedidos.min.js ✓
-...
+pedidos/assets/pedidos.js          ✓
+pedidos/assets/pedidos.min.js      ✓
+dtfUV/printway-dtf-orders.php      ✓
 ```
 
-Ao extrair na raiz do site, cada arquivo vai exatamente para o lugar certo.
+Ao extrair em `plugins/printway/`, cada arquivo vai para o lugar certo.
 
 #### ERROS HISTÓRICOS — nunca repetir
 
-**Erro 1 — `cd /home/user/Prestashop && zip entrega.zip pedidos/...`:**
-ZIP contém `pedidos/assets/pedidos.js` sem prefixo. Ao extrair na raiz do site,
-arquivo vai para `/public_html/pedidos/assets/pedidos.js` — lugar errado.
-
-**Erro 2 — flag `-j` (junk paths):** remove as pastas do ZIP.
+**Erro 1 — flag `-j` (junk paths):** remove as pastas do ZIP.
 ```bash
 zip -j entrega.zip dtfUV/templates/dtf-uv-markup.php  # ERRADO!
-# Arquivo vai para: plugins/printway/dtf-uv-markup.php  ✗
+# ZIP contém: dtf-uv-markup.php (sem pasta)
+# Vai para: plugins/printway/dtf-uv-markup.php  ✗
 ```
 
-**Erro 3 — ZIP completo do plugin:** nunca zip da pasta inteira — sobrescreve o que não mudou.
+**Erro 2 — ZIP completo do plugin:** nunca zip da pasta inteira.
+```bash
+zip -r entrega.zip .  # ERRADO! Manda tudo, sobrescreve o que não mudou
+```
+
+**Erro 3 — prefixo errado:** ZIP criado a partir da pasta pai resulta em
+`Prestashop/pedidos/...` em vez de `pedidos/...` — extrai no lugar errado.
+
+**Erro 4 — prefixo `wp-content/plugins/printway/`:** ZIP com este prefixo
+extraído em `plugins/printway/` resulta em
+`printway/wp-content/plugins/printway/pedidos/...` — lugar completamente errado.
+
+**Correto:** sempre `cd /home/user/Prestashop` antes de zipar, sem `-j`, sem `-r`,
+listando só os arquivos alterados.
 
 #### Instalação
 
-Extrair o ZIP **na raiz do site** (diretório onde está a pasta `wp-content/`).
+Extrair o ZIP em **`wp-content/plugins/printway/`** (a pasta do plugin).
 
 **NUNCA** usar o instalador de plugins do WordPress: ele cria `printway-X.X.X/`
 separado em vez de sobrescrever `printway/`, corrompendo a instalação.

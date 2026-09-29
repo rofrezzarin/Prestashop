@@ -736,6 +736,7 @@ function pwDtfDeleteOrder(btn){
     if(json.success){
       var card=btn.closest(".pw-dtf-order-card");if(card){card.remove();}
       pwDtfUpdateTotals();
+      location.reload();
     } else {
       btn.disabled=false;btn.textContent="Excluir";
       alert((json.data&&json.data.message)||"Não foi possível excluir o pedido.");

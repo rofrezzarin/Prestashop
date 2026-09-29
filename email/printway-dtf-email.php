@@ -2035,6 +2035,7 @@ function pw_dtf_expose_ajax_config() {
 			'email'    => $user->user_email,
 			'whatsapp' => (string) get_user_meta( $user->ID, 'billing_phone', true ),
 			'role'     => $role_label,
+			'role_slug' => $role_slug,
 			'is_admin' => current_user_can( 'manage_options' ),
 			'can_pay_later' => '' !== pw_dtf_get_user_unlock_code( (int) $user->ID ),
 			'pay_later_code' => pw_dtf_get_user_unlock_code( (int) $user->ID ),

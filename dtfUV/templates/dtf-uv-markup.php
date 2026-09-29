@@ -10,6 +10,16 @@
         Carregando usuário...
       </div>
 
+      <div id="pw-collab-notice" style="display:none;text-align:center;padding:32px 20px;background:#fffbeb;border:1px solid #fbbf24;border-radius:12px;margin:16px 0;">
+        <h3 style="margin:0 0 10px;color:#92400e;">Área reservada para clientes</h3>
+        <p style="margin:0 0 20px;color:#78350f;font-size:15px;line-height:1.5;">
+          Como <strong>Colaborador</strong>, o cálculo DTF UV deve ser realizado pelo sistema interno, no menu <strong>Relatórios → Simulador DTF UV</strong>.
+        </p>
+        <a id="pw-collab-link" href="https://printway.com.br/sistema" class="pw-btn" style="display:inline-block;text-decoration:none;">
+          Acessar o Sistema
+        </a>
+      </div>
+
       <div class="pw-stepper">
         <div class="pw-step" data-step="1">
           <div class="dot">1</div>

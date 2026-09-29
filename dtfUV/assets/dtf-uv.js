@@ -2139,6 +2139,22 @@
           }
         }
 
+        /* Colaboradores: exibe aviso e bloqueia acesso ao calculador */
+        if (currentUser && !currentUser.is_admin) {
+          var roleNorm = (currentUser.role_slug || currentUser.role || "").toLowerCase().replace(/[^a-z0-9_-]/g, "");
+          if (["contributor", "colaborador", "collaborator"].indexOf(roleNorm) >= 0) {
+            var collabNotice = document.getElementById("pw-collab-notice");
+            var stepper = document.querySelector(".pw-stepper");
+            var stepContent = document.querySelector(".pw-step-content");
+            var userInfoEl = document.getElementById("pw-user-info");
+            if (collabNotice) collabNotice.style.display = "block";
+            if (stepper)      stepper.style.display      = "none";
+            if (stepContent)  stepContent.style.display  = "none";
+            if (userInfoEl)   userInfoEl.style.display   = "none";
+            return;
+          }
+        }
+
         const tipo = document.getElementById("pw-tipo-step");
 
         const fileInput = document.getElementById("pw-pdf");

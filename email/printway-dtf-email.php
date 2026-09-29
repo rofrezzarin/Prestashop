@@ -428,7 +428,7 @@ function pw_dtf_register_order_storage() {
 function pw_dtf_render_orders_tabs() {
 	$type     = isset( $_GET['tipo'] ) ? sanitize_key( wp_unslash( $_GET['tipo'] ) ) : 'site';
 	$base_url = wc_get_account_endpoint_url( 'orders' );
-	$site_url = remove_query_arg( 'tipo', $base_url );
+	$site_url = add_query_arg( 'tipo', 'site', $base_url );
 	$dtf_url  = add_query_arg( 'tipo', 'dtf-uv', $base_url );
 
 	echo '<nav class="pw-dtf-order-tabs" aria-label="Tipos de pedidos" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 22px">';

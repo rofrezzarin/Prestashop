@@ -400,7 +400,7 @@
                 </label>
                 <label class="pw-radio-option">
                   <input type="radio" name="pw-delivery-method" value="entrega_taxa">
-                  <span>Entregar mediante taxa de entrega que irei pagar</span>
+                  <span>Entregar - Consultar opções de frete</span>
                 </label>
               </div>
               <div id="pw-delivery-status" class="muted" style="margin-top:8px">Selecione como deseja receber o pedido.</div>
@@ -526,15 +526,15 @@
               Voltar
             </button>
 
-            <button id="btn-finish-no-pay" class="pw-btn ghost" type="button" style="display:none">
-              Finalizar sem pagar
+            <button id="btn-finish-no-pay" class="pw-btn ghost" type="button">
+              Finalizar e pagar depois
             </button>
 
             <button id="btn-next-3" class="pw-btn" type="button" disabled style="display:none">
               Avançar
             </button>
 
-            <button id="btn-finish" class="pw-btn" type="button" disabled>
+            <button id="btn-finish" class="pw-btn" type="button" disabled style="display:none">
               Finalizar
             </button>
           </div>
@@ -560,14 +560,14 @@
      ========================================================= -->
     <div id="pw-shipping-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center;" aria-modal="true" role="dialog" aria-labelledby="pw-shipping-modal-title">
       <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:540px;width:calc(100% - 32px);max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.22);">
-        <h3 id="pw-shipping-modal-title" style="margin:0 0 6px;color:var(--primary)">Calcular frete</h3>
-        <p class="muted" style="margin:0 0 16px;font-size:14px">Informe o CEP de entrega para ver as opções disponíveis.</p>
+        <h3 id="pw-shipping-modal-title" style="margin:0 0 6px;color:var(--primary)">Opções de frete</h3>
+        <p class="muted" style="margin:0 0 16px;font-size:14px">Selecione a transportadora e o prazo desejado. O CEP de entrega é o que você informou no cadastro.</p>
         <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
           <div style="flex:1;min-width:160px">
             <label class="pw-field-label" for="pw-shipping-cep">CEP de entrega</label>
-            <input id="pw-shipping-cep" class="pw-input" type="text" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" />
+            <input id="pw-shipping-cep" class="pw-input" type="text" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="off" readonly style="background:#f3f4f6;cursor:default;color:#555" />
           </div>
-          <button id="pw-shipping-calc-btn" class="pw-btn" type="button" style="white-space:nowrap">Calcular frete</button>
+          <button id="pw-shipping-calc-btn" class="pw-btn" type="button" style="white-space:nowrap;display:none">Calcular frete</button>
         </div>
         <div id="pw-shipping-error" style="display:none;color:var(--danger);font-size:14px;margin-bottom:10px"></div>
         <div id="pw-shipping-loading" style="display:none;text-align:center;padding:18px 0;color:var(--muted)">Calculando opções de frete…</div>

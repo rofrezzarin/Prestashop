@@ -462,7 +462,10 @@ function pw_dtf_render_account_orders() {
 			'order'          => 'DESC',
 		)
 	);
-	echo '<h2>Pedidos de DTF UV</h2>';
+	echo '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">';
+	echo '<h2 style="margin:0">Pedidos de DTF UV</h2>';
+	echo '<a href="https://printway.com.br/calcular_dtf_uv/" class="woocommerce-button button" style="font-size:14px;padding:8px 16px">+ Fazer novo pedido</a>';
+	echo '</div>';
 
 	if ( empty( $orders ) ) {
 		echo '<p>Nenhum pedido de DTF UV foi enviado por esta conta.</p>';
@@ -3018,7 +3021,7 @@ function pw_dtf_send_order() {
 
 	$delivery_options = array(
 		'retirada_local' => 'Irei retirar no local',
-		'entrega_taxa'   => 'Entregar mediante taxa de entrega que irei pagar',
+		'entrega_taxa'   => 'Entregar',
 	);
 
 	$mp_payment_id = sanitize_text_field( $_POST['mp_payment_id'] ?? '' );

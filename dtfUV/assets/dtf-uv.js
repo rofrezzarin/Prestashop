@@ -2711,10 +2711,7 @@
             .catch(function() {});
         }
 
-        if (currentUser) {
-          const btnFinishNoPay = document.getElementById("btn-finish-no-pay");
-          if (btnFinishNoPay) btnFinishNoPay.style.display = "inline-flex";
-        }
+        // btn-finish-no-pay é sempre visível (renomeado para "Finalizar e pagar depois")
 
         btnPayNow.addEventListener("click", function () {
           if (PAYMENT_CONTROLS_LOCKED) {
@@ -2747,11 +2744,14 @@
             btnFinishNoPay.textContent = "Registrando...";
             try {
               await createDtfOrder(0, qrGenerationSequence, "finalizar_sem_pagar");
-              btnFinishNoPay.style.display = "none";
-              btnNext3.style.display = "none";
+              // Redireciona para área de pedidos DTF UV após criar com sucesso
+              var ordersUrl = window.PW_SERVER_DATA && window.PW_SERVER_DATA.dtf_orders_url
+                ? window.PW_SERVER_DATA.dtf_orders_url
+                : "/minha-conta/orders/?tipo=dtf-uv";
+              window.location.href = ordersUrl;
             } catch(e) {
               btnFinishNoPay.disabled = false;
-              btnFinishNoPay.textContent = "Finalizar sem pagar";
+              btnFinishNoPay.textContent = "Finalizar e pagar depois";
               paymentMsg.style.color = "var(--danger)";
               paymentMsg.textContent = e.message || "Erro ao registrar pedido.";
             }
@@ -2856,7 +2856,10 @@
             }
             shippingModal.style.display = "flex";
             document.body.style.overflow = "hidden";
-            if (shippingCepInput) shippingCepInput.focus();
+            // Auto-calcula ao abrir pois o CEP já vem preenchido e é somente leitura
+            if (shippingCepInput && shippingCepInput.value.replace(/\D/g,"").length === 8) {
+              pwDtfCalcShipping();
+            }
           };
 
           function pwDtfCloseShippingModal(revertDelivery) {
@@ -3026,7 +3029,7 @@
           DTF_ORDER_CREATED = false;
           var banner = document.getElementById("pw-order-created-banner");
           if (banner) banner.style.display = "none";
-          if (btnFinishNoPay && currentUser) btnFinishNoPay.style.display = "inline-flex";
+          if (btnFinishNoPay) { btnFinishNoPay.style.display = ""; btnFinishNoPay.disabled = false; btnFinishNoPay.textContent = "Finalizar e pagar depois"; }
 
           refreshAdvanceAvailability();
 

@@ -1,4 +1,4 @@
-/* PW_BUILD_VERSION: 1.32.403 */
+/* PW_BUILD_VERSION: 1.32.404 */
 #pw-personalizados-app,
   #pw-personalizados-app * {
     box-sizing: border-box;
@@ -504,6 +504,32 @@
 
   #pw-personalizados-app .pw-btn-primary:hover {
     background: var(--pw-primary-dark);
+  }
+
+  #pw-personalizados-app .pw-cfg-save-btn {
+    font-weight: 600;
+    transition: background .25s, border-color .25s, color .25s, box-shadow .25s;
+  }
+  #pw-personalizados-app .pw-cfg-save-clean {
+    color: #fff;
+    background: #16a34a;
+    border-color: #15803d;
+  }
+  #pw-personalizados-app .pw-cfg-save-clean:hover {
+    background: #15803d;
+  }
+  #pw-personalizados-app .pw-cfg-save-dirty {
+    color: #fff;
+    background: #dc2626;
+    border-color: #b91c1c;
+    animation: pw-cfg-save-pulse 2s ease-in-out infinite;
+  }
+  #pw-personalizados-app .pw-cfg-save-dirty:hover {
+    background: #b91c1c;
+  }
+  @keyframes pw-cfg-save-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,.4); }
+    50%       { box-shadow: 0 0 0 6px rgba(220,38,38,0); }
   }
 
   #pw-personalizados-app .pw-btn-blue {

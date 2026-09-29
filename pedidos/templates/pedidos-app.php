@@ -1,6 +1,6 @@
 <!--
   PRINTWAY - PEDIDOS DE PERSONALIZADOS
-  PW_BUILD_VERSION: 1.32.403
+  PW_BUILD_VERSION: 1.32.404
   Bloco isolado para inserir em um widget HTML do WordPress/Elementor.
   Não contém nem altera cabeçalho, rodapé, body ou estilos globais da página.
 -->
@@ -1035,7 +1035,7 @@
     </section>
 
     <section class="pw-system-view pw-consultation" data-view="settings">
-      <div class="pw-consultation-header"><div><h3>Configurações e permissões</h3><p>Acesso exclusivo do administrador. Defina o que cada função pode realizar.</p></div><button class="pw-btn pw-btn-primary" id="pw-save-settings" type="button">Salvar configurações</button></div>
+      <div class="pw-consultation-header"><div><h3>Configurações e permissões</h3><p>Acesso exclusivo do administrador. Defina o que cada função pode realizar.</p></div><button class="pw-btn pw-cfg-save-btn pw-cfg-save-clean" id="pw-save-settings" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:5px;vertical-align:-2px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Salvar configurações</button></div>
       <div class="pw-settings-tabs" role="tablist" aria-label="Tópicos das configurações"><button class="pw-active" type="button" data-settings-tab="access">🔒 Acesso</button><button type="button" data-settings-tab="general">⚙️ Geral</button><button type="button" data-settings-tab="shipping">🚚 Envio</button><button type="button" data-settings-tab="appearance">🎨 Aparência</button><button type="button" data-settings-tab="speech">💬 Falar</button><button type="button" data-settings-tab="tests">🧹 Limpeza</button><button type="button" data-settings-tab="errors">⚠️ Erros</button><button type="button" data-settings-tab="tokens">🔑 Tokens</button><button type="button" data-settings-tab="whatsapp">📲 WhatsApp</button><button type="button" data-settings-tab="nfe">📄 NF-e</button></div>
       <div class="pw-settings-panel pw-active" data-settings-panel="access">
         <section class="pw-section"><div class="pw-section-title"><div><h3>Acesso individual aos menus</h3><p>Selecione um colaborador e determine exatamente quais áreas estarão disponíveis para ele.</p></div></div>
@@ -1148,12 +1148,23 @@
       </div>
       <div class="pw-settings-panel" data-settings-panel="whatsapp">
         <section class="pw-section">
-          <div class="pw-section-title"><div><h3>Notificações por WhatsApp</h3><p>Configure quais mudanças de situação disparam uma mensagem automática no WhatsApp do cliente. O token de acesso é configurado em <strong>🔑 Tokens</strong>.</p></div><button class="pw-btn pw-btn-primary" id="pw-whatsapp-settings-save" type="button">Salvar configurações</button></div>
+          <div class="pw-section-title"><div><h3>Notificações por WhatsApp</h3><p>Configure quais mudanças de situação disparam uma mensagem automática no WhatsApp do cliente. O token de acesso é configurado em <strong>🔑 Tokens</strong>.</p></div></div>
           <div class="pw-grid">
             <div class="pw-field pw-col-6">
               <label for="pw-wa-official-number">Número oficial para atendimento</label>
               <input id="pw-wa-official-number" type="tel" placeholder="(00) 00000-0000" inputmode="numeric">
               <small class="pw-field-hint">Aparece na mensagem como link de contato. Deixe em branco para não incluir.</small>
+            </div>
+            <div class="pw-field pw-col-5">
+              <label for="pw-wa-test-number">Número de teste</label>
+              <input id="pw-wa-test-number" type="tel" placeholder="(00) 00000-0000" inputmode="numeric">
+              <small class="pw-field-hint">Recebe a mensagem da aba selecionada ao clicar em Enviar teste.</small>
+            </div>
+            <div class="pw-field pw-col-1" style="align-self:flex-end">
+              <button class="pw-btn pw-btn-soft" id="pw-wa-test-send" type="button" title="Envia a mensagem da aba ativa para o número de teste">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Enviar teste
+              </button>
             </div>
             <div class="pw-field pw-col-12">
               <label>Enviar mensagem ao mudar a situação para:</label>

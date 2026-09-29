@@ -19,7 +19,7 @@ if ( defined( 'PW_PERSONALIZADOS_MODULE_LOADED' ) ) {
 }
 
 define( 'PW_PERSONALIZADOS_MODULE_LOADED', true );
-define( 'PW_PERSONALIZADOS_VERSION', '1.32.403' );
+define( 'PW_PERSONALIZADOS_VERSION', '1.32.404' );
 define( 'PW_PERSONALIZADOS_DB_VERSION', '1.2.0' );
 define( 'PW_PERSONALIZADOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_PERSONALIZADOS_URL', plugin_dir_url( __FILE__ ) );
@@ -2533,6 +2533,54 @@ function pw_personalizados_delete_orders() {
 add_action( 'wp_ajax_pw_personalizados_delete_orders', 'pw_personalizados_delete_orders' );
 
 /**
+ * Reserva atomicamente o próximo número de pedido da sequência global.
+ * Retorna a string zero-padded com 5 dígitos (ex: "00042") ou WP_Error.
+ * Usado pelo módulo DTF UV para garantir numeração unificada com os pedidos do sistema.
+ */
+function pw_personalizados_reserve_order_number() {
+	global $wpdb;
+	pw_personalizados_install_tables();
+	$meta_table   = pw_personalizados_meta_table();
+	$orders_table = pw_personalizados_table_map()['pw_personalizados_orders'];
+	$sequence_key = 'pw_personalizados_order_sequence';
+	$now          = current_time( 'mysql', true );
+
+	$wpdb->query( $wpdb->prepare(
+		"INSERT IGNORE INTO {$meta_table} (meta_key, meta_value, updated_at) VALUES (%s, %s, %s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sequence_key, wp_json_encode( 1 ), $now
+	) );
+
+	$reserved = null;
+	$wpdb->query( 'START TRANSACTION' );
+	try {
+		$stored_raw = $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$meta_table} WHERE meta_key = %s FOR UPDATE", $sequence_key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$stored     = json_decode( (string) $stored_raw, true );
+		$next       = is_numeric( $stored ) ? max( 1, (int) $stored ) : 1;
+		$existing   = $wpdb->get_col( "SELECT object_id FROM {$orders_table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $existing as $object_id ) {
+			if ( preg_match( '/^(?:PW-\d{8}-)?(\d{5})$/', (string) $object_id, $match ) ) {
+				$next = max( $next, (int) $match[1] + 1 );
+			}
+		}
+		if ( $next > 99999 ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new WP_Error( 'sequence_overflow', 'Sequência de pedidos atingiu o limite de 99.999.' );
+		}
+		$wpdb->replace( $meta_table, array(
+			'meta_key'   => $sequence_key,
+			'meta_value' => wp_json_encode( $next + 1 ),
+			'updated_at' => $now,
+		), array( '%s', '%s', '%s' ) );
+		$wpdb->query( 'COMMIT' );
+		$reserved = str_pad( (string) $next, 5, '0', STR_PAD_LEFT );
+	} catch ( Throwable $error ) {
+		$wpdb->query( 'ROLLBACK' );
+		return new WP_Error( 'sequence_error', 'Não foi possível reservar o número do pedido.' );
+	}
+	return $reserved;
+}
+
+/**
  * Cadastra um novo pedido com numeração global protegida por transação.
  *
  * A listagem completa de pedidos continua disponível para os relatórios, mas
@@ -4019,8 +4067,14 @@ function pw_personalizados_import_dtf_order( $data ) {
 		);
 	}
 
+	$pdf_att_id  = isset( $data['pdf_attachment_id'] ) ? (int) $data['pdf_attachment_id'] : 0;
+	$pdf_att_url = isset( $data['pdf_attachment_url'] ) ? (string) $data['pdf_attachment_url'] : '';
+	$art_entry   = $pdf_att_id ? array( 'id' => $pdf_att_id, 'url' => $pdf_att_url, 'mime' => 'application/pdf', 'code' => '' ) : null;
+
 	$order = array(
 		'orderNumber'            => $order_num,
+		'name'                   => $client_name,
+		'createdAt'              => $now_sql,
 		'createdDate'            => $today,
 		'orderTime'              => $time_now,
 		'lastChange'             => $now_iso,
@@ -4045,14 +4099,15 @@ function pw_personalizados_import_dtf_order( $data ) {
 			'closingDay'             => 0,
 		),
 		'items'                  => array(
-			array(
+			array_filter( array(
 				'product'  => 'Impressão DTF UV',
 				'quantity' => 1,
 				'unit'     => 'un.',
 				'price'    => $amount,
 				'total'    => $amount,
 				'notes'    => $detail ?: ( $height > 0 ? 'Altura: ' . number_format( $height, 2, ',', '.' ) . ' cm' : 'Pedido via calculadora online' ),
-			),
+				'art'      => $art_entry,
+			) ),
 		),
 		'personalizationNotes'   => $notes,
 		'total'                  => $amount,

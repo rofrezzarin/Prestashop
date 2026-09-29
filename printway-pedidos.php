@@ -3638,6 +3638,7 @@ function pw_personalizados_whatsapp_settings_save() {
 		wp_send_json_error( array( 'message' => 'Somente administradores.' ), 403 );
 	}
 	$official_number = sanitize_text_field( $_POST['official_number'] ?? '' );
+	$test_number     = sanitize_text_field( $_POST['test_number'] ?? '' );
 	$raw_statuses    = $_POST['notify_statuses'] ?? array();
 	if ( ! is_array( $raw_statuses ) ) $raw_statuses = array();
 	$allowed_statuses = array( 'Criação da arte', 'Arte aprovada', 'Em produção', 'Produzido', 'Aguardando entrega', 'Entregue' );
@@ -3653,6 +3654,7 @@ function pw_personalizados_whatsapp_settings_save() {
 	}
 	update_option( 'pw_personalizados_wa_settings', array(
 		'official_number'   => $official_number,
+		'test_number'       => $test_number,
 		'notify_statuses'   => $notify_statuses,
 		'message_templates' => $message_templates,
 	) );
@@ -3794,5 +3796,89 @@ function pw_personalizados_whatsapp_send() {
 	wp_send_json_success( array( 'sent' => true ) );
 }
 add_action( 'wp_ajax_pw_personalizados_whatsapp_send', 'pw_personalizados_whatsapp_send' );
+
+function pw_personalizados_whatsapp_test_send() {
+	pw_personalizados_ajax_guard();
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Somente administradores.' ), 403 );
+	}
+
+	$wa_token    = get_option( 'pw_personalizados_wa_token', '' );
+	$wa_phone_id = get_option( 'pw_personalizados_wa_phone_id', '' );
+	if ( ! $wa_token || ! $wa_phone_id ) {
+		wp_send_json_error( array( 'message' => 'Token ou Phone ID não configurado em Tokens.' ) );
+		return;
+	}
+
+	$settings    = get_option( 'pw_personalizados_wa_settings', array() );
+	if ( ! is_array( $settings ) ) $settings = array();
+
+	$test_raw = sanitize_text_field( $_POST['test_number'] ?? '' );
+	if ( ! $test_raw ) $test_raw = $settings['test_number'] ?? '';
+	if ( ! $test_raw ) {
+		wp_send_json_error( array( 'message' => 'Informe um número de teste.' ) );
+		return;
+	}
+
+	$digits = preg_replace( '/\D/', '', $test_raw );
+	if ( strlen( $digits ) === 11 || strlen( $digits ) === 10 ) $digits = '55' . $digits;
+	if ( strlen( $digits ) < 12 ) {
+		wp_send_json_error( array( 'message' => 'Número inválido: ' . $test_raw ) );
+		return;
+	}
+
+	$active_status = sanitize_text_field( $_POST['active_status'] ?? 'Criação da arte' );
+	$templates     = is_array( $settings['message_templates'] ?? null ) ? $settings['message_templates'] : array();
+	$template      = ! empty( $templates[ $active_status ] ) ? $templates[ $active_status ] : pw_personalizados_wa_default_template( $active_status );
+
+	$official_raw = $settings['official_number'] ?? '';
+	$off_d        = preg_replace( '/\D/', '', $official_raw );
+	if ( strlen( $off_d ) === 11 || strlen( $off_d ) === 10 ) $off_d = '55' . $off_d;
+	$contact_line = ( strlen( $off_d ) >= 12 )
+		? "\n\n📞 Para falar conosco: https://wa.me/" . $off_d
+		: '';
+
+	$replacements = array(
+		'<nome_cliente>'     => 'Cliente Teste',
+		'<codigo_cliente>'   => '0001',
+		'<numero_pedido>'    => '00001',
+		'<situacao>'         => $active_status,
+		'<produto>'          => 'Impressão DTF UV — 28 cm × 15 cm',
+		'<quantidade>'       => '10',
+		'<valor_total>'      => 'R$ 49,90',
+		'<prazo_entrega>'    => wp_date( 'd/m/Y', strtotime( '+3 days' ) ),
+		'<data_criacao>'     => wp_date( 'd/m/Y' ),
+		'<status_pagamento>' => 'Pendente',
+		'<link_contato>'     => $contact_line,
+	);
+	$message = str_replace( array_keys( $replacements ), array_values( $replacements ), $template );
+
+	$url      = 'https://graph.facebook.com/v19.0/' . $wa_phone_id . '/messages';
+	$payload  = wp_json_encode( array(
+		'messaging_product' => 'whatsapp',
+		'recipient_type'    => 'individual',
+		'to'                => $digits,
+		'type'              => 'text',
+		'text'              => array( 'body' => $message, 'preview_url' => false ),
+	) );
+	$response = wp_remote_post( $url, array(
+		'headers' => array( 'Authorization' => 'Bearer ' . $wa_token, 'Content-Type' => 'application/json' ),
+		'body'    => $payload,
+		'timeout' => 15,
+	) );
+
+	if ( is_wp_error( $response ) ) {
+		wp_send_json_error( array( 'message' => $response->get_error_message() ) );
+		return;
+	}
+	$code = wp_remote_retrieve_response_code( $response );
+	if ( 200 !== $code && 201 !== $code ) {
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		wp_send_json_error( array( 'message' => $body['error']['message'] ?? 'Erro HTTP ' . $code ) );
+		return;
+	}
+	wp_send_json_success( array( 'sent' => true, 'to' => $digits ) );
+}
+add_action( 'wp_ajax_pw_personalizados_whatsapp_test_send', 'pw_personalizados_whatsapp_test_send' );
 
 

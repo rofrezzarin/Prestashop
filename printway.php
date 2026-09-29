@@ -30,6 +30,8 @@ define( 'PW_PRINTWAY_BOOTSTRAPPED', true );
 define( 'PW_PRINTWAY_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_PRINTWAY_VERSION', '2.2.27' );
 
+add_filter( 'show_admin_bar', '__return_false' );
+
 require_once PW_PRINTWAY_DIR . 'printway-logger.php';
 
 /**

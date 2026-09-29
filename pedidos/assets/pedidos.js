@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.403
+// PW_BUILD_VERSION: 1.32.404
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -15628,8 +15628,22 @@
   $('#pw-payment-modal').addEventListener('change', () => $('#pw-payment-entry-save').classList.remove('pw-saved'));
   $('#pw-dtf-cost-modal').addEventListener('input', () => $('#pw-save-dtf-cost').classList.remove('pw-saved'));
   $('#pw-dtf-cost-modal').addEventListener('change', () => $('#pw-save-dtf-cost').classList.remove('pw-saved'));
-  document.querySelector('[data-view="settings"]').addEventListener('input', () => $('#pw-save-settings').classList.remove('pw-saved'));
-  document.querySelector('[data-view="settings"]').addEventListener('change', () => $('#pw-save-settings').classList.remove('pw-saved'));
+  function markCfgDirty() {
+    const btn = $('#pw-save-settings');
+    if (!btn) return;
+    btn.classList.remove('pw-cfg-save-clean');
+    btn.classList.add('pw-cfg-save-dirty');
+    btn.classList.remove('pw-saved');
+  }
+  function markCfgClean() {
+    const btn = $('#pw-save-settings');
+    if (!btn) return;
+    btn.classList.remove('pw-cfg-save-dirty');
+    btn.classList.add('pw-cfg-save-clean');
+    btn.classList.add('pw-saved');
+  }
+  document.querySelector('[data-view="settings"]').addEventListener('input', markCfgDirty);
+  document.querySelector('[data-view="settings"]').addEventListener('change', markCfgDirty);
 
   $('#pw-save-registry').addEventListener('click', async () => {
     const kind = $('#pw-registry-kind').value;
@@ -16680,6 +16694,30 @@
     const saveButton = $('#pw-save-settings');
     if (saveButton.disabled) return;
     if (!userIsAdministrator(currentUser)) return showMessage('Apenas Administradores podem alterar permissões.', 'error');
+
+    // Route to WhatsApp save when that tab is active
+    const activeTabBtn = document.querySelector('[data-settings-tab].pw-active');
+    const activeTab = activeTabBtn ? activeTabBtn.dataset.settingsTab : 'access';
+    if (activeTab === 'whatsapp') {
+      const officialInput = $('#pw-wa-official-number');
+      const testInput     = $('#pw-wa-test-number');
+      const officialNumber = officialInput ? officialInput.value.trim() : '';
+      const testNumber     = testInput ? testInput.value.trim() : '';
+      const notifyStatuses = Array.from($$('.pw-wa-status-check')).filter(c => c.checked).map(c => c.value);
+      const messageTemplates = {};
+      $$('.pw-wa-msg-tpl').forEach(ta => { messageTemplates[ta.dataset.waStatus] = ta.value.trim(); });
+      saveButton.disabled = true;
+      try {
+        await ajaxPost({ action: 'pw_personalizados_whatsapp_settings_save', official_number: officialNumber, test_number: testNumber, notify_statuses: notifyStatuses, message_templates: messageTemplates });
+        showMessage('Configurações de WhatsApp salvas com sucesso.', 'success');
+        markCfgClean();
+      } catch (err) {
+        showMessage('Erro ao salvar WhatsApp: ' + err.message, 'error');
+      } finally {
+        saveButton.disabled = false;
+      }
+      return;
+    }
     const sequenceInfo = currentOrderSequenceInfo();
     const requestedSequence = Math.trunc(Number($('#pw-next-order-sequence').value) || 0);
     if (requestedSequence < 1 || requestedSequence > 99999) return showMessage('Informe uma sequência de pedido entre 1 e 99999.', 'error');
@@ -16726,7 +16764,7 @@
     } finally { saveButton.disabled = false; }
     applyStatusSettings(settings);
     cleanupExpiredTrash(); recordAudit('settings', 'permissions', 'Configurações atualizadas', 'Acessos individuais, sequência global de pedidos, aparência e retenção da Lixeira'); showMessage('Configurações salvas.', 'success');
-    saveButton.classList.add('pw-saved');
+    markCfgClean();
     renderOrdersConsultation();
   });
   function activateSettingsTab(name) {
@@ -16812,6 +16850,8 @@
       const s = (res.data) || {};
       const officialInput = $('#pw-wa-official-number');
       if (officialInput) officialInput.value = s.official_number || '';
+      const testInput = $('#pw-wa-test-number');
+      if (testInput) testInput.value = s.test_number || '';
       const statuses = Array.isArray(s.notify_statuses) ? s.notify_statuses : [];
       $$('.pw-wa-status-check').forEach(chk => { chk.checked = statuses.includes(chk.value); });
       const templates = (s.message_templates && typeof s.message_templates === 'object') ? s.message_templates : {};
@@ -16890,22 +16930,25 @@
     if (e.target.classList.contains('pw-wa-msg-tpl')) updateWhatsAppPreview();
   });
 
-  const waSaveBtn = $('#pw-whatsapp-settings-save');
-  if (waSaveBtn) {
-    waSaveBtn.addEventListener('click', async () => {
-      const officialInput = $('#pw-wa-official-number');
-      const officialNumber = officialInput ? officialInput.value.trim() : '';
-      const notifyStatuses = Array.from($$('.pw-wa-status-check')).filter(c => c.checked).map(c => c.value);
-      const messageTemplates = {};
-      $$('.pw-wa-msg-tpl').forEach(ta => { messageTemplates[ta.dataset.waStatus] = ta.value.trim(); });
-      waSaveBtn.disabled = true;
+  const waTestBtn = $('#pw-wa-test-send');
+  if (waTestBtn) {
+    waTestBtn.addEventListener('click', async () => {
+      const testInput = $('#pw-wa-test-number');
+      const testNumber = testInput ? testInput.value.trim() : '';
+      if (!testNumber) { showMessage('Informe um número de teste antes de enviar.', 'error'); if (testInput) testInput.focus(); return; }
+      const activeTab = document.querySelector('.pw-wa-msg-tab.pw-active');
+      const activeStatus = activeTab ? activeTab.dataset.waMsgTab : 'Criação da arte';
+      waTestBtn.disabled = true;
+      const origText = waTestBtn.innerHTML;
+      waTestBtn.textContent = '⏳ Enviando…';
       try {
-        await ajaxPost({ action: 'pw_personalizados_whatsapp_settings_save', official_number: officialNumber, notify_statuses: notifyStatuses, message_templates: messageTemplates });
-        showMessage('Configurações de WhatsApp salvas com sucesso.', 'success');
+        await ajaxPost({ action: 'pw_personalizados_whatsapp_test_send', test_number: testNumber, active_status: activeStatus });
+        showMessage('✅ Mensagem de teste enviada para ' + testNumber, 'success');
       } catch (err) {
-        showMessage('Erro ao salvar configurações de WhatsApp: ' + err.message, 'error');
+        showMessage('Erro ao enviar teste: ' + err.message, 'error');
       } finally {
-        waSaveBtn.disabled = false;
+        waTestBtn.disabled = false;
+        waTestBtn.innerHTML = origText;
       }
     });
   }

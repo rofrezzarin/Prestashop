@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Envio de pedidos
  * Description: Recebe os pedidos da calculadora DTF UV e envia os dados e anexos pelo wp_mail().
- * Version: 2.4.21
+ * Version: 2.4.22
  * Author: PrintWay
  */
 
@@ -468,7 +468,7 @@ function pw_dtf_render_account_orders() {
 			'post_type'      => 'pw_dtf_order',
 			'post_status'    => 'publish',
 			'author'         => get_current_user_id(),
-			'posts_per_page' => 50,
+			'posts_per_page' => 200,
 			'orderby'        => 'date',
 			'order'          => 'DESC',
 		)
@@ -480,34 +480,27 @@ function pw_dtf_render_account_orders() {
 		return;
 	}
 
-	$hide_completed = '1' === get_user_meta( get_current_user_id(), '_pw_dtf_hide_completed_orders', true );
-	echo '<p><label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input id="pw-dtf-hide-completed" type="checkbox"' . checked( $hide_completed, true, false ) . '> Ocultar concluídos</label></p>';
-	$ajax_url = admin_url( 'admin-ajax.php' );
-	$nonce    = wp_create_nonce( PW_DTF_NONCE_ACTION );
+	// Busca situações atuais do sistema de pedidos para todos os pedidos de uma vez
+	global $wpdb;
+	$references = array_filter( array_map( static function( $o ) {
+		return get_post_meta( $o->ID, '_pw_dtf_reference', true );
+	}, $orders ) );
+	$pedidos_status_map = array();
+	if ( ! empty( $references ) ) {
+		$orders_table = $wpdb->prefix . 'pw_personalizados_orders';
+		$placeholders = implode( ',', array_fill( 0, count( $references ), '%s' ) );
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT object_id, status FROM {$orders_table} WHERE object_id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			...$references
+		) );
+		foreach ( $rows as $row ) {
+			$pedidos_status_map[ $row->object_id ] = $row->status;
+		}
+	}
 
-	echo '<style>
-		.pw-dtf-account-completed{opacity:.58;background:#f6f8fa}
-		.pw-dtf-account-completed td{color:#667085}
-		.pw-dtf-pay-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600}
-		.pw-dtf-pay-badge.paid{background:#dcfce7;color:#166534}
-		.pw-dtf-pay-badge.pending{background:#fef9c3;color:#854d0e}
-		.pw-dtf-pay-badge.waiting{background:#fee2e2;color:#991b1b}
-		.pw-dtf-qr-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;margin-top:4px}
-		.pw-dtf-qr-btn:hover{background:#1d4ed8}
-		#pw-dtf-qr-modal{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);align-items:center;justify-content:center}
-		#pw-dtf-qr-modal.active{display:flex}
-		#pw-dtf-qr-modal-inner{background:#fff;border-radius:14px;padding:28px 24px;max-width:380px;width:92%;text-align:center;position:relative}
-		#pw-dtf-qr-modal-close{position:absolute;top:10px;right:14px;font-size:22px;cursor:pointer;background:none;border:none;color:#555}
-		#pw-dtf-qr-modal img{width:220px;height:220px;margin:10px auto}
-		#pw-dtf-qr-copy{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:7px;cursor:pointer;font-size:12px;font-family:monospace;word-break:break-all;max-width:100%;margin:6px 0}
-		#pw-dtf-qr-status{margin-top:10px;font-size:13px;color:#555}
-	</style>';
-
-	echo '<div style="overflow-x:auto">';
-	echo '<table class="woocommerce-orders-table woocommerce-MyAccount-orders shop_table shop_table_responsive my_account_orders account-orders-table pw-dtf-sortable-table">';
-	echo '<thead><tr>';
-	echo '<th>Pedido</th><th>Data</th><th>Valor</th><th>Forma de Pagamento</th><th>Status Pagamento</th><th>Entrega</th><th>Situação</th><th>Ação</th>';
-	echo '</tr></thead><tbody>';
+	$hide_pref = '1' === get_user_meta( get_current_user_id(), '_pw_dtf_hide_completed_orders', true );
+	$ajax_url  = admin_url( 'admin-ajax.php' );
+	$nonce     = wp_create_nonce( PW_DTF_NONCE_ACTION );
 
 	$payment_status_labels = array(
 		'paid'       => array( 'label' => 'Pago', 'class' => 'paid' ),
@@ -516,35 +509,129 @@ function pw_dtf_render_account_orders() {
 		''           => array( 'label' => '—', 'class' => '' ),
 	);
 
-	foreach ( $orders as $order ) {
-		$reference      = get_post_meta( $order->ID, '_pw_dtf_reference', true );
-		$amount         = (float) get_post_meta( $order->ID, '_pw_dtf_amount', true );
-		$payment        = get_post_meta( $order->ID, '_pw_dtf_payment_label', true );
-		$delivery       = get_post_meta( $order->ID, '_pw_dtf_delivery_label', true );
-		$status         = get_post_meta( $order->ID, '_pw_dtf_status', true );
-		$pay_status     = (string) get_post_meta( $order->ID, '_pw_dtf_payment_status', true );
-		$pay_info       = isset( $payment_status_labels[ $pay_status ] ) ? $payment_status_labels[ $pay_status ] : $payment_status_labels[''];
-		$can_pay        = in_array( $pay_status, array( 'pending_mp', 'aguardando', '' ), true ) && $amount > 0;
+	$finalizados_statuses = array( 'Entregue', 'Concluído', 'Finalizado', 'Cancelado' );
+	$deletable_statuses   = array( 'Criação da arte', 'Arte enviada', 'Arte aprovada' );
 
-		echo '<tr class="' . ( 'Concluído' === $status ? 'pw-dtf-account-completed' : '' ) . '">';
-		echo '<td data-title="Pedido">' . esc_html( $reference ) . '</td>';
-		echo '<td data-title="Data">' . esc_html( pw_dtf_format_order_date( $order ) ) . '</td>';
-		echo '<td data-title="Valor">' . wp_kses_post( wc_price( $amount ) ) . '</td>';
-		echo '<td data-title="Forma de Pagamento">' . esc_html( $payment ) . '</td>';
-		echo '<td data-title="Status Pagamento"><span class="pw-dtf-pay-badge ' . esc_attr( $pay_info['class'] ) . '">' . esc_html( $pay_info['label'] ) . '</span></td>';
-		echo '<td data-title="Entrega">' . esc_html( $delivery ? $delivery : 'Não informada' ) . '</td>';
-		echo '<td data-title="Situação">' . esc_html( $status ? $status : 'Enviado para análise' ) . '</td>';
-		echo '<td data-title="Ação">';
-		if ( $can_pay ) {
-			echo '<button class="pw-dtf-qr-btn" data-order-id="' . esc_attr( $order->ID ) . '" data-amount="' . esc_attr( $amount ) . '" onclick="pwDtfOpenQr(this)">&#128247; Gerar QR Code para pagamento</button>';
-		} else {
-			echo '—';
+	// Calcula totais
+	$total_valor   = 0.0;
+	$total_pago    = 0.0;
+	$total_pendente = 0.0;
+	$count_all     = 0;
+
+	$rows_html = '';
+	foreach ( $orders as $order ) {
+		$reference  = (string) get_post_meta( $order->ID, '_pw_dtf_reference', true );
+		$amount     = (float) get_post_meta( $order->ID, '_pw_dtf_amount', true );
+		$payment    = (string) get_post_meta( $order->ID, '_pw_dtf_payment_label', true );
+		$delivery   = (string) get_post_meta( $order->ID, '_pw_dtf_delivery_label', true );
+		$pay_status = (string) get_post_meta( $order->ID, '_pw_dtf_payment_status', true );
+		$att_id     = (int) get_post_meta( $order->ID, '_pw_dtf_pdf_attachment_id', true );
+		$situacao   = isset( $pedidos_status_map[ $reference ] ) ? $pedidos_status_map[ $reference ] : (string) get_post_meta( $order->ID, '_pw_dtf_status', true );
+		if ( '' === $situacao ) { $situacao = 'Criação da arte'; }
+
+		$pay_info    = isset( $payment_status_labels[ $pay_status ] ) ? $payment_status_labels[ $pay_status ] : $payment_status_labels[''];
+		$is_paid     = 'paid' === $pay_status;
+		$can_pay     = ! $is_paid && $amount > 0;
+		$is_final    = $is_paid && in_array( $situacao, $finalizados_statuses, true );
+		$can_delete  = ! $is_paid && in_array( $situacao, $deletable_statuses, true );
+		$row_class   = $is_final ? 'pw-dtf-account-finalizado' : '';
+		$count_all++;
+		$total_valor += $amount;
+		if ( $is_paid ) { $total_pago += $amount; } else { $total_pendente += $amount; }
+
+		$pdf_html = '—';
+		if ( $att_id ) {
+			$pdf_url  = wp_get_attachment_url( $att_id );
+			$thumb    = wp_get_attachment_image_src( $att_id, 'thumbnail' );
+			if ( $pdf_url ) {
+				if ( $thumb ) {
+					$pdf_html = '<a href="' . esc_url( $pdf_url ) . '" target="_blank" rel="noopener"><img src="' . esc_url( $thumb[0] ) . '" alt="Arte" style="width:44px;height:44px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb"></a>';
+				} else {
+					$pdf_html = '<a href="' . esc_url( $pdf_url ) . '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#2563eb"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Ver arte</a>';
+				}
+			}
 		}
-		echo '</td>';
-		echo '</tr>';
+
+		$qr_svg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><rect x="2" y="2" width="8" height="8" rx="1" ry="1"/><rect x="4" y="4" width="4" height="4" fill="#fff"/><rect x="14" y="2" width="8" height="8" rx="1" ry="1"/><rect x="16" y="4" width="4" height="4" fill="#fff"/><rect x="2" y="14" width="8" height="8" rx="1" ry="1"/><rect x="4" y="16" width="4" height="4" fill="#fff"/><rect x="14" y="14" width="2" height="2"/><rect x="18" y="14" width="4" height="2"/><rect x="14" y="18" width="4" height="2"/><rect x="20" y="18" width="2" height="4"/><rect x="14" y="22" width="2" height="2"/></svg>';
+
+		$rows_html .= '<tr class="' . esc_attr( $row_class ) . '" data-dtf-order-id="' . esc_attr( $order->ID ) . '">';
+		$rows_html .= '<td data-title="Pedido" style="font-family:monospace;font-size:12px">' . esc_html( $reference ) . '</td>';
+		$rows_html .= '<td data-title="Data">' . esc_html( pw_dtf_format_order_date( $order ) ) . '</td>';
+		$rows_html .= '<td data-title="Valor" style="font-weight:600">' . wp_kses_post( wc_price( $amount ) ) . '</td>';
+		$rows_html .= '<td data-title="Pagamento">' . esc_html( $payment ) . '</td>';
+		$rows_html .= '<td data-title="Status Pag."><span class="pw-dtf-pay-badge ' . esc_attr( $pay_info['class'] ) . '">' . esc_html( $pay_info['label'] ) . '</span></td>';
+		$rows_html .= '<td data-title="Entrega">' . esc_html( $delivery ? $delivery : '—' ) . '</td>';
+		$rows_html .= '<td data-title="Situação"><span class="pw-dtf-situacao-badge">' . esc_html( $situacao ) . '</span></td>';
+		$rows_html .= '<td data-title="Arte">' . $pdf_html . '</td>';
+		$rows_html .= '<td data-title="Ações" style="white-space:nowrap">';
+		if ( $can_pay ) {
+			$rows_html .= '<button class="pw-dtf-qr-btn" data-order-id="' . esc_attr( $order->ID ) . '" data-amount="' . esc_attr( $amount ) . '" onclick="pwDtfOpenQr(this)" style="margin-bottom:4px">' . $qr_svg . ' Pagar</button>';
+		}
+		if ( $can_delete ) {
+			$rows_html .= '<button class="pw-dtf-del-btn" data-order-id="' . esc_attr( $order->ID ) . '" data-ref="' . esc_attr( $reference ) . '" onclick="pwDtfDeleteOrder(this)">&#128465; Excluir</button>';
+		}
+		if ( ! $can_pay && ! $can_delete ) {
+			$rows_html .= '—';
+		}
+		$rows_html .= '</td>';
+		$rows_html .= '</tr>';
 	}
 
-	echo '</tbody></table></div>';
+	echo '<style>
+		.pw-dtf-account-finalizado{opacity:.55;background:#f8fafc}
+		.pw-dtf-account-finalizado td{color:#6b7280}
+		.pw-dtf-pay-badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.02em}
+		.pw-dtf-pay-badge.paid{background:#dcfce7;color:#166534}
+		.pw-dtf-pay-badge.pending{background:#fef9c3;color:#854d0e}
+		.pw-dtf-pay-badge.waiting{background:#fee2e2;color:#991b1b}
+		.pw-dtf-situacao-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#f1f5f9;color:#334155;font-weight:600}
+		.pw-dtf-qr-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600}
+		.pw-dtf-qr-btn:hover{background:#1d4ed8}
+		.pw-dtf-del-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#fff;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;margin-left:4px}
+		.pw-dtf-del-btn:hover{background:#fef2f2}
+		#pw-dtf-qr-modal{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.65);align-items:center;justify-content:center}
+		#pw-dtf-qr-modal.active{display:flex}
+		#pw-dtf-qr-modal-inner{background:#fff;border-radius:16px;padding:28px 24px;max-width:390px;width:93%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+		#pw-dtf-qr-modal-close{position:absolute;top:10px;right:14px;font-size:22px;cursor:pointer;background:none;border:none;color:#888}
+		#pw-dtf-qr-modal img{width:220px;height:220px;margin:10px auto;display:block}
+		#pw-dtf-qr-copy{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:7px;cursor:pointer;font-size:12px;font-family:monospace;word-break:break-all;max-width:100%;margin:6px 0}
+		#pw-dtf-qr-status{margin-top:10px;font-size:13px;color:#555}
+		.pw-dtf-summary-cards{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 18px}
+		.pw-dtf-card{flex:1;min-width:120px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+		.pw-dtf-card-label{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+		.pw-dtf-card-value{font-size:18px;font-weight:700;color:#111827}
+		.pw-dtf-card.green .pw-dtf-card-value{color:#059669}
+		.pw-dtf-card.yellow .pw-dtf-card-value{color:#d97706}
+		.pw-dtf-card.blue .pw-dtf-card-value{color:#2563eb}
+		.pw-dtf-tfoot-total td{font-weight:700;border-top:2px solid #e5e7eb;background:#f9fafb}
+		.pw-dtf-filter-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+	</style>';
+
+	echo '<div class="pw-dtf-summary-cards">';
+	echo '<div class="pw-dtf-card blue"><div class="pw-dtf-card-label">Total de pedidos</div><div class="pw-dtf-card-value">' . esc_html( $count_all ) . '</div></div>';
+	echo '<div class="pw-dtf-card green"><div class="pw-dtf-card-label">Total pago</div><div class="pw-dtf-card-value">' . wp_kses_post( wc_price( $total_pago ) ) . '</div></div>';
+	echo '<div class="pw-dtf-card yellow"><div class="pw-dtf-card-label">Pendente</div><div class="pw-dtf-card-value">' . wp_kses_post( wc_price( $total_pendente ) ) . '</div></div>';
+	echo '<div class="pw-dtf-card"><div class="pw-dtf-card-label">Soma geral</div><div class="pw-dtf-card-value">' . wp_kses_post( wc_price( $total_valor ) ) . '</div></div>';
+	echo '</div>';
+
+	echo '<div class="pw-dtf-filter-bar">';
+	echo '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input id="pw-dtf-hide-completed" type="checkbox"' . checked( $hide_pref, true, false ) . '> Ocultar Finalizados</label>';
+	echo '</div>';
+
+	echo '<div style="overflow-x:auto">';
+	echo '<table class="woocommerce-orders-table woocommerce-MyAccount-orders shop_table shop_table_responsive my_account_orders account-orders-table pw-dtf-sortable-table">';
+	echo '<thead><tr>';
+	echo '<th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th><th>Status Pag.</th><th>Entrega</th><th>Situação</th><th>Arte</th><th>Ações</th>';
+	echo '</tr></thead><tbody>';
+	echo $rows_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '</tbody>';
+	echo '<tfoot><tr class="pw-dtf-tfoot-total">';
+	echo '<td colspan="2">Total (' . esc_html( $count_all ) . ' pedidos)</td>';
+	echo '<td>' . wp_kses_post( wc_price( $total_valor ) ) . '</td>';
+	echo '<td colspan="2"><span style="color:#059669;font-weight:700">Pago: ' . wp_kses_post( wc_price( $total_pago ) ) . '</span></td>';
+	echo '<td colspan="4"><span style="color:#d97706;font-weight:700">Pendente: ' . wp_kses_post( wc_price( $total_pendente ) ) . '</span></td>';
+	echo '</tr></tfoot>';
+	echo '</table></div>';
 
 	echo '<div id="pw-dtf-qr-modal"><div id="pw-dtf-qr-modal-inner">';
 	echo '<button id="pw-dtf-qr-modal-close" onclick="pwDtfCloseQr()" aria-label="Fechar">&times;</button>';
@@ -620,11 +707,30 @@ function pwDtfCopyPix(el){
   var t=document.getElementById("pw-dtf-qr-text").textContent;
   if(!t){return;}
   navigator.clipboard&&navigator.clipboard.writeText(t).then(function(){el.style.background="#dcfce7";setTimeout(function(){el.style.background="";},1500);});
+}
+function pwDtfDeleteOrder(btn){
+  var orderId=btn.dataset.orderId,ref=btn.dataset.ref;
+  if(!confirm("Tem certeza que deseja excluir o pedido "+ref+"?\nEssa ação não pode ser desfeita.")){return;}
+  btn.disabled=true;btn.textContent="Excluindo...";
+  var form=new URLSearchParams();
+  form.append("action","pw_dtf_delete_order");
+  form.append("nonce",' . wp_json_encode( $nonce ) . ');
+  form.append("order_id",orderId);
+  fetch(' . wp_json_encode( $ajax_url ) . ',{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()})
+  .then(function(r){return r.json();})
+  .then(function(json){
+    if(json.success){
+      var row=btn.closest("tr");if(row){row.remove();}
+    } else {
+      btn.disabled=false;btn.textContent="Excluir";
+      alert((json.data&&json.data.message)||"Não foi possível excluir o pedido.");
+    }
+  }).catch(function(){btn.disabled=false;btn.textContent="Excluir";alert("Erro de conexão.");});
 }';
 
 	echo '<script>' . $js . '</script>';
 
-	echo '<script>(function(){var toggle=document.getElementById("pw-dtf-hide-completed");if(!toggle){return;}function apply(){document.querySelectorAll(".pw-dtf-account-completed").forEach(function(row){row.style.display=toggle.checked?"none":"";});}toggle.addEventListener("change",function(){apply();var form=new URLSearchParams();form.append("action","printway_dtf_save_completed_visibility");form.append("nonce",window.printway_dtf_nonce||"");form.append("hide",toggle.checked?"1":"0");fetch((window.PW_SERVER_DATA&&window.PW_SERVER_DATA.ajax_url)||"/wp-admin/admin-ajax.php",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()});});apply();})();</script>';
+	echo '<script>(function(){var toggle=document.getElementById("pw-dtf-hide-completed");if(!toggle){return;}function apply(){document.querySelectorAll(".pw-dtf-account-finalizado").forEach(function(row){row.style.display=toggle.checked?"none":"";});}toggle.addEventListener("change",function(){apply();var form=new URLSearchParams();form.append("action","printway_dtf_save_completed_visibility");form.append("nonce",window.printway_dtf_nonce||"");form.append("hide",toggle.checked?"1":"0");fetch((window.PW_SERVER_DATA&&window.PW_SERVER_DATA.ajax_url)||"/wp-admin/admin-ajax.php",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()});});apply();})();</script>';
 	pw_dtf_render_sortable_table_script();
 }
 
@@ -2588,6 +2694,7 @@ function pw_dtf_save_user_profile() {
 add_action( 'wp_ajax_printway_dtf_save_user_profile', 'pw_dtf_save_user_profile' );
 add_action( 'wp_ajax_pw_dtf_register_mp_payment',  'pw_dtf_register_mp_payment' );
 add_action( 'wp_ajax_pw_dtf_create_pix_for_order', 'pw_dtf_create_pix_for_order' );
+add_action( 'wp_ajax_pw_dtf_delete_order',          'pw_dtf_delete_order' );
 add_action( 'wp_ajax_' . PW_DTF_VALIDATE_PAY_LATER_ACTION, 'pw_dtf_validate_pay_later' );
 add_action( 'wp_ajax_printway_dtf_get_pay_later_access', 'pw_dtf_get_pay_later_access' );
 add_action( 'wp_ajax_printway_dtf_get_points_access', 'pw_dtf_get_points_access' );
@@ -2784,6 +2891,51 @@ function pw_dtf_create_pix_for_order() {
 		'qr_base64'   => $result['qr_base64'],
 		'expires_at'  => $result['expires_at'],
 	) );
+}
+
+function pw_dtf_delete_order() {
+	check_ajax_referer( PW_DTF_NONCE_ACTION, 'nonce' );
+
+	if ( ! is_user_logged_in() ) {
+		wp_send_json_error( array( 'message' => 'Login necessário.' ), 403 );
+	}
+
+	$order_id = absint( pw_dtf_post_raw( 'order_id' ) );
+	if ( ! $order_id ) {
+		wp_send_json_error( array( 'message' => 'Parâmetros inválidos.' ), 400 );
+	}
+
+	$post = get_post( $order_id );
+	if ( ! $post || 'pw_dtf_order' !== $post->post_type ) {
+		wp_send_json_error( array( 'message' => 'Pedido não encontrado.' ), 404 );
+	}
+
+	if ( (int) $post->post_author !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Sem permissão para excluir este pedido.' ), 403 );
+	}
+
+	$pay_status = (string) get_post_meta( $order_id, '_pw_dtf_payment_status', true );
+	if ( 'paid' === $pay_status ) {
+		wp_send_json_error( array( 'message' => 'Pedidos já pagos não podem ser excluídos.' ), 409 );
+	}
+
+	$status          = (string) get_post_meta( $order_id, '_pw_dtf_status', true );
+	$allowed_statuses = array( 'Criação da arte', 'Arte enviada', 'Arte aprovada' );
+	if ( '' !== $status && ! in_array( $status, $allowed_statuses, true ) ) {
+		wp_send_json_error( array( 'message' => 'Este pedido está em fase avançada e não pode ser excluído pelo cliente.' ), 409 );
+	}
+
+	$att_id = (int) get_post_meta( $order_id, '_pw_dtf_pdf_attachment_id', true );
+	if ( $att_id ) {
+		wp_delete_attachment( $att_id, true );
+	}
+
+	$deleted = wp_delete_post( $order_id, true );
+	if ( ! $deleted ) {
+		wp_send_json_error( array( 'message' => 'Não foi possível excluir o pedido.' ), 500 );
+	}
+
+	wp_send_json_success( array( 'message' => 'Pedido excluído com sucesso.' ) );
 }
 
 function pw_dtf_validate_pay_later() {
@@ -3181,6 +3333,34 @@ function pw_dtf_send_order() {
 		wp_send_json_error( $data, 500 );
 	}
 
+	$pdf_attachment_id  = 0;
+	$pdf_attachment_url = '';
+	if ( $order_id ) {
+		$upload_dir = wp_upload_dir();
+		if ( empty( $upload_dir['error'] ) ) {
+			$dest_filename = wp_unique_filename( $upload_dir['path'], sanitize_file_name( $pdf['name'] ) );
+			$dest_path     = $upload_dir['path'] . '/' . $dest_filename;
+			if ( @copy( $pdf['path'], $dest_path ) ) {
+				require_once ABSPATH . 'wp-admin/includes/image.php';
+				require_once ABSPATH . 'wp-admin/includes/file.php';
+				require_once ABSPATH . 'wp-admin/includes/media.php';
+				$att_id = wp_insert_attachment( array(
+					'post_mime_type' => 'application/pdf',
+					'post_title'     => sanitize_file_name( $pdf['name'] ),
+					'post_status'    => 'inherit',
+					'post_parent'    => $order_id,
+				), $dest_path, $order_id );
+				if ( ! is_wp_error( $att_id ) ) {
+					$pdf_attachment_id  = (int) $att_id;
+					$pdf_attachment_url = wp_get_attachment_url( $pdf_attachment_id );
+					update_post_meta( $order_id, '_pw_dtf_pdf_attachment_id', $pdf_attachment_id );
+					update_post_meta( $order_id, '_pw_dtf_pdf_attachment_url', $pdf_attachment_url );
+					wp_generate_attachment_metadata( $pdf_attachment_id, $dest_path );
+				}
+			}
+		}
+	}
+
 	pw_dtf_delete_temp_file( $pdf );
 	if ( $receipt ) {
 		pw_dtf_delete_temp_file( $receipt );
@@ -3195,22 +3375,24 @@ function pw_dtf_send_order() {
 
 	if ( '' !== $order_reference ) {
 		do_action( 'pw_dtf_order_created', array(
-			'reference'       => $order_reference,
-			'user_id'         => get_current_user_id(),
-			'name'            => $name,
-			'email'           => $email,
-			'whatsapp'        => $whatsapp,
-			'amount'          => $amount,
-			'original_amount' => $original,
-			'height'          => $height,
-			'customer_type'   => $customer,
-			'payment_method'  => $payment,
-			'payment_label'   => pw_dtf_payment_option_label( $payment, $payment_type, $alternative_payments ),
-			'delivery_label'  => isset( $delivery_options[ $delivery ] ) ? $delivery_options[ $delivery ] : $delivery,
-			'points_used'     => $points_used,
-			'points_discount' => $points_discount,
-			'instructions'    => $instructions,
-			'detail'          => $detail,
+			'reference'          => $order_reference,
+			'user_id'            => get_current_user_id(),
+			'name'               => $name,
+			'email'              => $email,
+			'whatsapp'           => $whatsapp,
+			'amount'             => $amount,
+			'original_amount'    => $original,
+			'height'             => $height,
+			'customer_type'      => $customer,
+			'payment_method'     => $payment,
+			'payment_label'      => pw_dtf_payment_option_label( $payment, $payment_type, $alternative_payments ),
+			'delivery_label'     => isset( $delivery_options[ $delivery ] ) ? $delivery_options[ $delivery ] : $delivery,
+			'points_used'        => $points_used,
+			'points_discount'    => $points_discount,
+			'instructions'       => $instructions,
+			'detail'             => $detail,
+			'pdf_attachment_id'  => $pdf_attachment_id,
+			'pdf_attachment_url' => $pdf_attachment_url,
 		) );
 	}
 
@@ -3248,6 +3430,12 @@ function pw_dtf_payment_option_label( $payment, $payment_type = '', $alternative
 }
 
 function pw_dtf_generate_order_reference( $user_id ) {
+	if ( function_exists( 'pw_personalizados_reserve_order_number' ) ) {
+		$seq = pw_personalizados_reserve_order_number();
+		if ( ! is_wp_error( $seq ) ) {
+			return (string) $seq;
+		}
+	}
 	return sprintf(
 		'DTF-%s-%d-%03d',
 		wp_date( 'Ymd-His' ),
@@ -3292,7 +3480,7 @@ function pw_dtf_store_order( $data ) {
 		'_pw_dtf_customer_type'  => $data['customer_type'],
 		'_pw_dtf_payment_label'  => $data['payment_label'],
 		'_pw_dtf_delivery_label' => $data['delivery_label'],
-		'_pw_dtf_status'         => 'Enviado para análise',
+		'_pw_dtf_status'         => 'Criação da arte',
 	);
 
 	foreach ( $meta as $key => $value ) {

@@ -32,12 +32,28 @@ com o **mesmo número**:
 | 1 | `pedidos/assets/pedidos.js` | linha 1: `// PW_BUILD_VERSION: X.X.X` |
 | 2 | `pedidos/assets/pedidos.min.js` | linha 1: `// PW_BUILD_VERSION: X.X.X` |
 | 3 | `pedidos/assets/pedidos.css` | linha 1: `/* PW_BUILD_VERSION: X.X.X */` |
-| 4 | `pedidos/templates/pedidos-app.php` | bloco JS inline: `PW_BUILD_VERSION: X.X.X` |
+| 4 | `pedidos/templates/pedidos-app.php` | linha 3 do HTML comment: `PW_BUILD_VERSION: X.X.X` |
 | 5 | `pedidos/printway-pedidos.php` | `define('PW_PERSONALIZADOS_VERSION','X.X.X')` |
 
 A função `pw_personalizados_release_ready()` lê os primeiros 4096 bytes dos arquivos
-1, 3 e 4 e exige que todos batam com o valor do arquivo 5. Se divergirem, o sistema
-mostra versão vazia no painel.
+1, 3 e 4 e exige que todos batam entre si. Se divergirem, o sistema mostra versão
+vazia no painel e a notificação de nova versão **nunca aparece**.
+
+#### Como funciona a notificação "Nova versão disponível"
+
+1. Ao carregar a página, o browser recebe `SERVER.version` = versão atual do PHP.
+2. A cada 15 segundos, o JS chama o AJAX `pw_personalizados_current_version`.
+3. O PHP verifica `release_ready()` (todos os 3 arquivos de build com a mesma versão).
+   - Se `ready = false` → retorna versão vazia → link fica oculto (deploy incompleto).
+   - Se `ready = true` → retorna `PW_PERSONALIZADOS_VERSION` instalada no servidor.
+4. O JS compara a versão retornada com a que estava no browser ao carregar.
+   - **Igual** → sem notificação (usuário já está na última versão).
+   - **Diferente** → exibe "Nova versão X.X.X — atualizar".
+
+**Conclusão:** a notificação só aparece se o usuário tiver o sistema aberto com a versão
+ANTIGA enquanto o servidor já tem a versão NOVA instalada. Após clicar em atualizar
+(recarrega a página), a notificação some porque as versões voltam a coincidir.
+Isso é o comportamento correto — não é bug.
 
 ---
 
@@ -49,7 +65,15 @@ Versão, funções novas, correções de lógica — tudo nos dois arquivos.
 
 ---
 
-### REGRA 3 — ZIP de entrega: formato FTP, com pastas internas, sem prefixo `printway/`
+### REGRA 3 — ZIP de entrega: APENAS arquivos alterados, pastas corretas, sem prefixo `printway/`
+
+#### Regra principal — SEMPRE enviar só os arquivos alterados
+
+**NUNCA enviar o plugin completo.** O ZIP deve conter **exclusivamente os arquivos que
+foram modificados naquela sessão**, com os caminhos internos corretos.
+
+Enviar arquivos que não mudaram é desperdício e pode sobrescrever versões mais novas
+que o usuário tenha instalado por outro meio.
 
 #### Estrutura real do plugin no servidor
 
@@ -58,7 +82,7 @@ O plugin fica em:
 /domains/printway.com.br/public_html/wp-content/plugins/printway/
 ```
 
-Dentro dessa pasta existem os módulos (subpastas):
+Módulos (subpastas) atuais:
 ```
 printway/
 ├── pedidos/
@@ -67,16 +91,17 @@ printway/
 │   └── printway-pedidos.php
 ├── dtfUV/
 │   ├── assets/         ← dtf-uv.css, dtf-uv.js
-│   └── templates/      ← dtf-uv-markup.php
+│   ├── templates/      ← dtf-uv-markup.php
+│   └── printway-dtf-orders.php   ← pedidos da calculadora (antes era email/)
 ├── editor-de-imagens/
-├── email/
-├── home/
 ├── mercadolivre/
-├── pedidos/
 ├── pix-qrcode/
 ├── shopee/
+├── printway.php        ← loader principal
 └── (outros módulos...)
 ```
+
+> ⚠️ A pasta `email/` foi removida. O arquivo foi movido para `dtfUV/printway-dtf-orders.php`.
 
 #### Como criar o ZIP corretamente
 
@@ -84,41 +109,56 @@ O usuário conecta via FTP **direto na pasta `printway/`** como raiz.
 O ZIP deve conter os arquivos **com os caminhos relativos a `printway/`**, **SEM** incluir
 `printway/` como prefixo na raiz do ZIP.
 
-**Exemplo — alterando arquivos do módulo `dtfUV`:**
+**Comando padrão (a partir de `/home/user/Prestashop`):**
 ```bash
-# Dentro do repositório (raiz = /home/user/Prestashop)
-zip entrega.zip dtfUV/templates/dtf-uv-markup.php dtfUV/assets/dtf-uv.css
+cd /home/user/Prestashop
+zip entrega.zip arquivo1/caminho.php arquivo2/caminho.js ...
 ```
 
-O ZIP resultante terá internamente:
-```
-dtfUV/templates/dtf-uv-markup.php
-dtfUV/assets/dtf-uv.css
-```
-
-Ao extrair em `plugins/printway/`, os arquivos vão para os lugares certos:
-```
-plugins/printway/dtfUV/templates/dtf-uv-markup.php  ✓
-plugins/printway/dtfUV/assets/dtf-uv.css            ✓
-```
-
-**Exemplo — alterando arquivos do módulo `pedidos`:**
+**Exemplo — alterando só arquivos do módulo `pedidos` (REGRA 1):**
 ```bash
-zip entrega.zip pedidos/assets/pedidos.js pedidos/assets/pedidos.min.js \
-  pedidos/assets/pedidos.css pedidos/templates/pedidos-app.php \
+zip entrega.zip \
+  pedidos/assets/pedidos.js \
+  pedidos/assets/pedidos.min.js \
+  pedidos/assets/pedidos.css \
+  pedidos/templates/pedidos-app.php \
   pedidos/printway-pedidos.php
 ```
 
-#### ERRO HISTÓRICO — nunca repetir
+**Exemplo — alterando um arquivo do módulo `dtfUV`:**
+```bash
+zip entrega.zip dtfUV/printway-dtf-orders.php
+```
 
-Em sessões anteriores foram gerados ZIPs com a flag `-j` (junk paths), que **remove
-os diretórios** e deixa só o nome do arquivo:
+O ZIP resultante terá internamente apenas o que mudou:
+```
+pedidos/assets/pedidos.js          ✓
+pedidos/assets/pedidos.min.js      ✓
+...
+```
+
+Ao extrair em `plugins/printway/`, cada arquivo vai para o lugar certo e nada mais
+é sobrescrito.
+
+#### ERROS HISTÓRICOS — nunca repetir
+
+**Erro 1 — flag `-j` (junk paths):** remove as pastas do ZIP.
 ```bash
 zip -j entrega.zip dtfUV/templates/dtf-uv-markup.php  # ERRADO!
-# Gera ZIP com: dtf-uv-markup.php (sem pasta)
-# Arquivo vai parar em: plugins/printway/dtf-uv-markup.php  ✗ (raiz errada!)
+# ZIP contém: dtf-uv-markup.php (sem pasta)
+# Vai para: plugins/printway/dtf-uv-markup.php  ✗
 ```
-**NUNCA usar `-j`**. Sempre usar o caminho relativo completo sem `-j`.
+
+**Erro 2 — ZIP completo do plugin:** nunca zip da pasta inteira.
+```bash
+zip -r entrega.zip .  # ERRADO! Manda tudo, sobrescreve o que não mudou
+```
+
+**Erro 3 — prefixo errado:** ZIP criado a partir da pasta pai resulta em
+`Prestashop/pedidos/...` em vez de `pedidos/...` — extrai no lugar errado.
+
+**Correto:** sempre `cd /home/user/Prestashop` antes de zipar, sem `-j`, sem `-r`,
+listando só os arquivos alterados.
 
 #### Instalação
 

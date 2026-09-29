@@ -411,14 +411,14 @@ function pw_dtf_register_order_storage() {
 }
 
 function pw_dtf_render_orders_tabs() {
-	$type     = isset( $_GET['tipo'] ) ? sanitize_key( wp_unslash( $_GET['tipo'] ) ) : 'site';
+	$type     = isset( $_GET['tipo'] ) ? sanitize_key( wp_unslash( $_GET['tipo'] ) ) : 'dtf-uv';
 	$base_url = wc_get_account_endpoint_url( 'orders' );
-	$site_url = remove_query_arg( 'tipo', $base_url );
+	$site_url = add_query_arg( 'tipo', 'site', $base_url );
 	$dtf_url  = add_query_arg( 'tipo', 'dtf-uv', $base_url );
 
 	echo '<nav class="pw-dtf-order-tabs" aria-label="Tipos de pedidos" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 22px">';
-	echo '<a class="woocommerce-button button' . ( 'dtf-uv' !== $type ? ' alt' : '' ) . '" href="' . esc_url( $site_url ) . '"' . ( 'dtf-uv' !== $type ? ' aria-current="page"' : '' ) . '>Pedidos do site</a>';
 	echo '<a class="woocommerce-button button' . ( 'dtf-uv' === $type ? ' alt' : '' ) . '" href="' . esc_url( $dtf_url ) . '"' . ( 'dtf-uv' === $type ? ' aria-current="page"' : '' ) . '>Pedidos de DTF UV</a>';
+	echo '<a class="woocommerce-button button' . ( 'site' === $type ? ' alt' : '' ) . '" href="' . esc_url( $site_url ) . '"' . ( 'site' === $type ? ' aria-current="page"' : '' ) . '>Pedidos do site</a>';
 	echo '</nav>';
 
 	if ( 'dtf-uv' === $type ) {

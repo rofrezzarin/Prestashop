@@ -19,7 +19,7 @@ if ( defined( 'PW_PERSONALIZADOS_MODULE_LOADED' ) ) {
 }
 
 define( 'PW_PERSONALIZADOS_MODULE_LOADED', true );
-define( 'PW_PERSONALIZADOS_VERSION', '1.32.398' );
+define( 'PW_PERSONALIZADOS_VERSION', '1.32.399' );
 define( 'PW_PERSONALIZADOS_DB_VERSION', '1.2.0' );
 define( 'PW_PERSONALIZADOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_PERSONALIZADOS_URL', plugin_dir_url( __FILE__ ) );
@@ -3362,7 +3362,7 @@ function pw_personalizados_tokens_status() {
 		) );
 		$mp_code = is_wp_error( $mp_resp ) ? 0 : wp_remote_retrieve_response_code( $mp_resp );
 		if ( $mp_code === 200 ) {
-			$tokens['mercadopago'] = array( 'status' => 'ok', 'label' => 'Token válido — Pix ativo' );
+			$tokens['mercadopago'] = array( 'status' => 'online', 'label' => 'Token válido — Pix ativo' );
 		} else {
 			$tokens['mercadopago'] = array( 'status' => 'error', 'label' => 'Token inválido (código ' . $mp_code . ')' );
 		}

@@ -295,6 +295,37 @@ pedidos/
 
 ---
 
+### 2026-09-29 — v1.32.398
+
+**O que foi feito:**
+- Sync bidirecional WP role ↔ pedidos `clientType`: alterar função WP atualiza campo `Tipo de cliente` no cadastro do pedido e vice-versa. Hook `set_user_role` no WP dispara AJAX para atualizar pedido; ao salvar pedido com clientType alterado, atualiza role WP correspondente.
+- Aviso inline na calculadora DTF UV: ao clicar "Avançar" estando em qualquer aba da calculadora (sem ter selecionado PDF), exibe div amarela com botão "Selecionar PDF agora" em vez de `window.confirm`. Botão clica no card "Já tenho o PDF" e esconde o aviso.
+- Integração Mercado Pago PIX registrado (calculadora DTF UV passo 3):
+  - Card Mercado Pago em Configurações → Tokens com campo `access_token`, salvo em `pw_printway_mp_settings`.
+  - Flag `mp_pix_enabled` no `PW_SERVER_DATA` (verdadeiro quando token configurado e válido).
+  - AJAX `pw_dtf_mp_create_pix`: cria pagamento PIX na API MP (`/v1/payments`), retorna `payment_id`, `qr_code`, `qr_code_base64`.
+  - AJAX `pw_dtf_mp_check_pix`: consulta status do pagamento (`/v1/payments/{id}`).
+  - Calculadora: quando MP ativo, "Gerar QR" cria pagamento registrado, exibe QR base64, faz polling a cada 4s. Ao detectar `approved`, confirma automaticamente (`PROOF_VALIDATED = true`) sem upload manual. PIX estático permanece como fallback quando MP não configurado.
+  - Validação do token no card faz chamada real à API MP (`/v1/payment_methods`) — coração bate apenas com token válido.
+
+**Decisões técnicas:**
+- `mp_pix_enabled` calculado no PHP ao publicar `PW_SERVER_DATA`, evitando AJAX extra só para checar.
+- Polling usa `setInterval` de 4s, limpo em `resetPaymentState()` e ao iniciar novo QR, para evitar timers obsoletos.
+- `mpPixSeq` incrementado a cada reset — callbacks de polling de rodadas anteriores descartam resultado ao comparar seq.
+- Validação do token MP usa endpoint `/v1/payment_methods` (leitura simples, sem criar recurso).
+
+**Arquivos alterados:**
+- `pedidos/printway-pedidos.php` (REGRA 1 — versão)
+- `pedidos/templates/pedidos-app.php` (REGRA 1 — versão)
+- `pedidos/assets/pedidos.js` (REGRA 1 — versão)
+- `pedidos/assets/pedidos.min.js` (REGRA 1 — versão)
+- `pedidos/assets/pedidos.css` (REGRA 1 — versão)
+- `dtfUV/assets/dtf-uv.js`
+- `dtfUV/templates/dtf-uv-markup.php`
+- `email/printway-dtf-email.php`
+
+---
+
 ### 2026-09-28 — v1.32.386 / printway.php 2.2.80
 
 **O que foi feito:**

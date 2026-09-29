@@ -2151,24 +2151,23 @@ function pw_dtf_get_current_user_profile() {
 	$neighborhood = trim( (string) get_user_meta( $uid, 'billing_neighborhood', true ) );
 	$city         = trim( (string) get_user_meta( $uid, 'billing_city', true ) );
 	$state        = trim( (string) get_user_meta( $uid, 'billing_state', true ) );
-	$client_type  = 'direto';
+	/* Tipo de cliente: papel WP como base, pedidos como fonte autoritativa. */
+	$wp_role_slug = ! empty( $user->roles ) ? reset( $user->roles ) : '';
+	$client_type  = ( 'revendedor' === $wp_role_slug ) ? 'revenda' : 'direto';
 
-	/* Sync from Pedidos client record when WP meta has gaps. */
-	if ( ! $cpf_cnpj || ! $cep || ! $street || ! $number || ! $neighborhood || ! $city || ! $state ) {
-		$found = pw_dtf_find_pedidos_client( $uid, $user->user_email );
-		if ( $found ) {
-			$cp = $found['payload'];
-			$ca = $cp['address'] ?? array();
-			if ( ! $cpf_cnpj && ! empty( $cp['document'] ) ) { $cpf_cnpj     = $digits_only( $cp['document'] ); }
-			if ( ! $cep          && ! empty( $ca['cep'] ) )          { $cep          = $digits_only( $ca['cep'] ); }
-			if ( ! $street       && ! empty( $ca['street'] ) )       { $street       = (string) $ca['street']; }
-			if ( ! $number       && ! empty( $ca['number'] ) )       { $number       = (string) $ca['number']; }
-			if ( ! $complement   && ! empty( $ca['complement'] ) )   { $complement   = (string) $ca['complement']; }
-			if ( ! $neighborhood && ! empty( $ca['neighborhood'] ) ) { $neighborhood = (string) $ca['neighborhood']; }
-			if ( ! $city         && ! empty( $ca['city'] ) )         { $city         = (string) $ca['city']; }
-			if ( ! $state        && ! empty( $ca['state'] ) )        { $state        = (string) $ca['state']; }
-			if ( ! empty( $cp['clientType'] ) ) { $client_type = 'revenda' === $cp['clientType'] ? 'revenda' : 'direto'; }
-		}
+	$found = pw_dtf_find_pedidos_client( $uid, $user->user_email );
+	if ( $found ) {
+		$cp = $found['payload'];
+		$ca = $cp['address'] ?? array();
+		if ( ! $cpf_cnpj && ! empty( $cp['document'] ) ) { $cpf_cnpj     = $digits_only( $cp['document'] ); }
+		if ( ! $cep          && ! empty( $ca['cep'] ) )          { $cep          = $digits_only( $ca['cep'] ); }
+		if ( ! $street       && ! empty( $ca['street'] ) )       { $street       = (string) $ca['street']; }
+		if ( ! $number       && ! empty( $ca['number'] ) )       { $number       = (string) $ca['number']; }
+		if ( ! $complement   && ! empty( $ca['complement'] ) )   { $complement   = (string) $ca['complement']; }
+		if ( ! $neighborhood && ! empty( $ca['neighborhood'] ) ) { $neighborhood = (string) $ca['neighborhood']; }
+		if ( ! $city         && ! empty( $ca['city'] ) )         { $city         = (string) $ca['city']; }
+		if ( ! $state        && ! empty( $ca['state'] ) )        { $state        = (string) $ca['state']; }
+		if ( ! empty( $cp['clientType'] ) ) { $client_type = 'revenda' === $cp['clientType'] ? 'revenda' : 'direto'; }
 	}
 
 	$missing = array();

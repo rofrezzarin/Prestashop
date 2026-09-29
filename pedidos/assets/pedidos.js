@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.418
+// PW_BUILD_VERSION: 1.32.419
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -14845,6 +14845,13 @@
     try { saved = await saveExpenseCollection(STORAGE.dtfCosts, records); } finally { saveButton.disabled = false; }
     if (!saved) return;
     recordAudit('dtfCost', entry.id, existing ? 'Despesa alterada' : 'Despesa registrada', entry.item + ' · ' + money.format(entry.value));
+    const d = entry.date;
+    if (d) {
+      const ls = $('#pw-dtf-list-start'), le = $('#pw-dtf-list-end');
+      if ((ls && ls.value && ls.value > d) || (le && le.value && le.value < d)) { if (ls) ls.value = ''; if (le) le.value = ''; }
+      const rs = $('#pw-dtf-report-start'), re = $('#pw-dtf-report-end');
+      if ((rs && rs.value && rs.value > d) || (re && re.value && re.value < d)) { if (rs) rs.value = ''; if (re) re.value = ''; }
+    }
     refreshExpenseViews();
     if (keepBulkEditorOpen('dtfCost', entry.id)) { editDtfCost(entry); markModalClean('pw-dtf-cost-modal'); setTimeout(() => $('#pw-save-dtf-cost').classList.add('pw-saved'), 0); }
     else if ($('#pw-dtf-cost-modal').classList.contains('pw-open')) closeModal('pw-dtf-cost-modal', true);

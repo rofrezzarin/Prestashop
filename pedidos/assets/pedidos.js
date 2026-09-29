@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.408
+// PW_BUILD_VERSION: 1.32.409
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -3889,6 +3889,8 @@
             const rText = speechSettingText('ordersRefresh');
             if (rText) window.setTimeout(() => speakNotification(rText), 900);
           }
+          // Auto-atualiza a lista silenciosamente para que o pedido novo apareça sem precisar clicar em Atualizar.
+          refreshOrdersReport().catch(() => {});
         }
       } else if (refreshButton) {
         refreshButton.dataset.tooltip = 'Atualizar a lista com os pedidos mais recentes';

@@ -197,6 +197,7 @@ function pw_shopee_store_tokens( $data, $shop_id = '' ) {
 	);
 	if ( $shop_id ) { $partial['shop_id'] = sanitize_text_field( (string) $shop_id ); }
 	pw_shopee_update_settings( $partial );
+	delete_transient( 'pw_shopee_cred_fail' );
 	return true;
 }
 
@@ -207,6 +208,13 @@ function pw_shopee_store_tokens( $data, $shop_id = '' ) {
  * deve passar por aqui.
  */
 function pw_shopee_get_valid_access_token() {
+	// Se uma tentativa recente falhou por credencial inválida (4xx), não tenta de
+	// novo até o transient expirar (1 hora) ou o usuário reconectar a loja.
+	$cred_fail = get_transient( 'pw_shopee_cred_fail' );
+	if ( $cred_fail ) {
+		return new WP_Error( 'shopee_blocked', 'Token da Shopee bloqueado por credencial inválida (HTTP ' . $cred_fail . '). Reconecte a loja em PrintWay → Shopee.' );
+	}
+
 	$settings = pw_shopee_get_settings();
 	$access_token = pw_shopee_unseal( $settings['access_token'] ?? null, 'access' );
 	$refresh_token = pw_shopee_unseal( $settings['refresh_token'] ?? null, 'refresh' );
@@ -248,6 +256,10 @@ function pw_shopee_get_valid_access_token() {
 	if ( 200 !== $status || empty( $data['access_token'] ) ) {
 		$message = is_array( $data ) && ! empty( $data['message'] ) ? $data['message'] : ( 'HTTP ' . $status );
 		pw_printway_log( 'shopee', 'error', 'Falha ao renovar o token da Shopee.', array( 'http' => $status, 'message' => $message ) );
+		// Credencial inválida (4xx): bloqueia novas tentativas por 1 hora para evitar spam no log.
+		if ( $status >= 400 && $status < 500 ) {
+			set_transient( 'pw_shopee_cred_fail', $status, HOUR_IN_SECONDS );
+		}
 		return new WP_Error( 'shopee_refresh_failed', 'A Shopee recusou a renovação do token. Reconecte a loja em PrintWay → Shopee.' );
 	}
 	pw_shopee_store_tokens( $data, $shop_id );

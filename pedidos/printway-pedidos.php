@@ -2738,7 +2738,7 @@ function pw_personalizados_build_order_summary( $order ) {
 	foreach ( (array) ( $order['items'] ?? array() ) as $item ) {
 		if ( ! is_array( $item ) ) { continue; }
 		$items[] = array(
-			'description' => (string) ( $item['description'] ?? '' ),
+			'description' => (string) ( $item['description'] ?? $item['product'] ?? '' ),
 			'quantity'    => (float) ( $item['quantity'] ?? 0 ),
 		);
 		if ( $thumbnail || ! is_array( $item['art'] ?? null ) ) { continue; }

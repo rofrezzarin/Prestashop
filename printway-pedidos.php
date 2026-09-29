@@ -3819,6 +3819,11 @@ function pw_personalizados_whatsapp_test_send() {
 		wp_send_json_error( array( 'message' => 'Informe um número de teste.' ) );
 		return;
 	}
+	// Auto-salva o número de teste para não precisar clicar em Salvar separado
+	if ( ! empty( $_POST['test_number'] ) ) {
+		$settings['test_number'] = $test_raw;
+		update_option( 'pw_personalizados_wa_settings', $settings );
+	}
 
 	$digits = preg_replace( '/\D/', '', $test_raw );
 	if ( strlen( $digits ) === 11 || strlen( $digits ) === 10 ) $digits = '55' . $digits;

@@ -1,6 +1,6 @@
 <!--
   PRINTWAY - PEDIDOS DE PERSONALIZADOS
-  PW_BUILD_VERSION: 1.32.407
+  PW_BUILD_VERSION: 1.32.408
   Bloco isolado para inserir em um widget HTML do WordPress/Elementor.
   Não contém nem altera cabeçalho, rodapé, body ou estilos globais da página.
 -->
@@ -1155,16 +1155,16 @@
               <input id="pw-wa-official-number" type="tel" placeholder="(00) 00000-0000" inputmode="numeric">
               <small class="pw-field-hint">Aparece na mensagem como link de contato. Deixe em branco para não incluir.</small>
             </div>
-            <div class="pw-field pw-col-5">
+            <div class="pw-field pw-col-6" style="display:flex;flex-direction:column;gap:0">
               <label for="pw-wa-test-number">Número de teste</label>
-              <input id="pw-wa-test-number" type="tel" placeholder="(00) 00000-0000" inputmode="numeric">
-              <small class="pw-field-hint">Recebe a mensagem da aba selecionada ao clicar em Enviar teste.</small>
-            </div>
-            <div class="pw-field pw-col-1" style="align-self:flex-end">
-              <button class="pw-btn pw-btn-primary" id="pw-wa-test-send" type="button" title="Envia a mensagem da aba ativa para o número de teste">
-                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                Enviar teste
-              </button>
+              <div style="display:flex;gap:8px;align-items:stretch">
+                <input id="pw-wa-test-number" type="tel" placeholder="(00) 00000-0000" inputmode="numeric" style="flex:1;min-width:0">
+                <button class="pw-btn pw-btn-primary" id="pw-wa-test-send" type="button" title="Envia a mensagem da aba ativa para o número de teste" style="flex-shrink:0;white-space:nowrap;min-height:0;padding:0 16px">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Enviar teste
+                </button>
+              </div>
+              <small class="pw-field-hint">Recebe a mensagem da aba selecionada ao clicar em Enviar teste. Salvo automaticamente ao enviar.</small>
             </div>
             <div class="pw-field pw-col-12">
               <label>Enviar mensagem ao mudar a situação para:</label>

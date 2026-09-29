@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.407
+// PW_BUILD_VERSION: 1.32.408
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -16948,7 +16948,20 @@
       const origText = waTestBtn.innerHTML;
       waTestBtn.textContent = '⏳ Enviando…';
       try {
-        await ajaxPost({ action: 'pw_personalizados_whatsapp_test_send', test_number: testNumber, active_status: activeStatus });
+        const form2 = new URLSearchParams();
+        form2.set('nonce', SERVER.nonce || '');
+        form2.set('action', 'pw_personalizados_whatsapp_test_send');
+        form2.set('test_number', testNumber);
+        form2.set('active_status', activeStatus);
+        const rawResp = await fetch(SERVER.ajaxUrl || SERVER.ajax_url || '/wp-admin/admin-ajax.php', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: form2.toString()
+        });
+        let result2;
+        const rawText = await rawResp.text();
+        try { result2 = JSON.parse(rawText); } catch(e) { throw new Error('Resposta inválida do servidor: ' + rawText.slice(0, 200)); }
+        if (!result2 || !result2.success) throw new Error((result2 && result2.data && result2.data.message) || 'Erro desconhecido (HTTP ' + rawResp.status + ')');
         showMessage('✅ Mensagem de teste enviada para ' + testNumber, 'success');
       } catch (err) {
         showMessage('Erro ao enviar teste: ' + err.message, 'error');

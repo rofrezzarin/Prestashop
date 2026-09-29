@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.396
+// PW_BUILD_VERSION: 1.32.397
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -396,6 +396,11 @@
         if (panel) panel.classList.remove('pw-visible');
         const shell = $('#pw-personalizados-shell');
         if (shell) shell.classList.remove('pw-auth-pending', 'pw-auth-denied');
+        /* Deep-link: abre view indicada via ?pw_view=nome */
+        try {
+          const deepView = new URLSearchParams(window.location.search).get('pw_view');
+          if (deepView) window.setTimeout(() => showSystemView(deepView), 300);
+        } catch(e) {}
       }, 180);
     };
     complete();

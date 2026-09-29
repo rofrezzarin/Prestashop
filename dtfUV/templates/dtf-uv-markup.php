@@ -15,8 +15,8 @@
         <p style="margin:0 0 20px;color:#78350f;font-size:15px;line-height:1.5;">
           Como <strong>Colaborador</strong>, o cálculo DTF UV deve ser realizado pelo sistema interno, no menu <strong>Relatórios → Simulador DTF UV</strong>.
         </p>
-        <a id="pw-collab-link" href="https://printway.com.br/sistema" class="pw-btn" style="display:inline-block;text-decoration:none;">
-          Acessar o Sistema
+        <a id="pw-collab-link" href="https://printway.com.br/sistema?pw_view=dtf-simulator" class="pw-btn" style="display:inline-block;text-decoration:none;">
+          Acessar o Sistema<span id="pw-collab-countdown" style="margin-left:6px;opacity:.75;font-size:13px;font-weight:400;"></span>
         </a>
       </div>
 

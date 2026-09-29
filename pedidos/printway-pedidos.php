@@ -19,7 +19,7 @@ if ( defined( 'PW_PERSONALIZADOS_MODULE_LOADED' ) ) {
 }
 
 define( 'PW_PERSONALIZADOS_MODULE_LOADED', true );
-define( 'PW_PERSONALIZADOS_VERSION', '1.32.396' );
+define( 'PW_PERSONALIZADOS_VERSION', '1.32.397' );
 define( 'PW_PERSONALIZADOS_DB_VERSION', '1.2.0' );
 define( 'PW_PERSONALIZADOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_PERSONALIZADOS_URL', plugin_dir_url( __FILE__ ) );

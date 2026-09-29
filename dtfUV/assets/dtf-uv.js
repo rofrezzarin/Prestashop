@@ -2151,6 +2151,24 @@
             if (stepper)      stepper.style.display      = "none";
             if (stepContent)  stepContent.style.display  = "none";
             if (userInfoEl)   userInfoEl.style.display   = "none";
+            /* Contador regressivo: 10 s → clica automaticamente no botão */
+            var collabLink = document.getElementById("pw-collab-link");
+            var countdownEl = document.getElementById("pw-collab-countdown");
+            if (collabLink && countdownEl) {
+              var secs = 10;
+              countdownEl.textContent = "(" + secs + ")";
+              var timer = setInterval(function () {
+                secs--;
+                if (secs > 0) {
+                  countdownEl.textContent = "(" + secs + ")";
+                } else {
+                  clearInterval(timer);
+                  countdownEl.textContent = "";
+                  collabLink.click();
+                }
+              }, 1000);
+              collabLink.addEventListener("click", function () { clearInterval(timer); });
+            }
             return;
           }
         }

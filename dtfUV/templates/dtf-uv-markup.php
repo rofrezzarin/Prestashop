@@ -313,6 +313,10 @@
                 <div class="pw-images-calc-action"><button id="btn-calc-size" class="pw-btn small" type="button">Calcular</button></div>
               </div>
               <div id="pw-size-guidance" class="pw-cutting-note" aria-live="polite"></div>
+              <div id="pw-size-layout-result" class="pw-layout-result" style="display:none">
+                <div class="pw-layout-preview-wrap"><div class="pw-layout-preview-title">Prévia aproximada da página</div><div id="pw-size-layout-preview" class="pw-layout-preview" aria-label="Prévia da disposição dos adesivos"></div></div>
+                <div id="pw-size-layout-summary" class="pw-layout-summary"></div>
+              </div>
             </div>
 
             <div

@@ -3720,6 +3720,57 @@
           return opcoes[0];
         }
 
+        function renderizarPreviaTamanho(best, espacamento) {
+          var preview = document.getElementById("pw-size-layout-preview");
+          var summary = document.getElementById("pw-size-layout-summary");
+          var result = document.getElementById("pw-size-layout-result");
+          if (!preview || !summary || !result) return;
+
+          var larguraInternaPreview = 266;
+          var escalaPreview = larguraInternaPreview / LARGURA_ESPERADA_CM;
+          var gapHorizontalPixels = espacamento * escalaPreview;
+          var gapVerticalPixels = ESPACAMENTO_VERTICAL_PADRAO_CM * escalaPreview;
+          var larguraItemPixels = best.itemLargura * escalaPreview;
+          var alturaItemPixels = best.itemAltura * escalaPreview;
+          var alturaProporcionalPapel = best.alturaReal * escalaPreview + 14;
+
+          preview.innerHTML = "";
+          preview.style.gridTemplateColumns = "repeat(" + best.colunas + "," + larguraItemPixels + "px)";
+          preview.style.gridAutoRows = alturaItemPixels + "px";
+          preview.style.height = Math.max(30, alturaProporcionalPapel) + "px";
+          preview.style.columnGap = gapHorizontalPixels + "px";
+          preview.style.rowGap = gapVerticalPixels + "px";
+
+          for (var i = 0; i < best.totalAdesivos; i++) {
+            var item = document.createElement("div");
+            item.className = "pw-layout-item";
+            item.textContent = i + 1;
+            preview.appendChild(item);
+          }
+
+          summary.innerHTML =
+            '<div class="pw-layout-info-cards">' +
+              '<div class="pw-layout-info-card is-primary">' +
+                '<span class="pw-layout-info-label">Largura × altura do papel</span>' +
+                '<div class="pw-layout-info-value"><strong>' + formatCm(LARGURA_ESPERADA_CM) + ' cm × ' + formatCm(best.alturaReal) + ' cm</strong></div>' +
+              '</div>' +
+              '<div class="pw-layout-info-card">' +
+                '<span class="pw-layout-info-label">Largura × altura de cada imagem</span>' +
+                '<div class="pw-layout-info-value"><strong>' + formatCm(best.itemLargura) + ' cm × ' + formatCm(best.itemAltura) + ' cm' + (best.girada ? ' (girada 90°)' : '') + '</strong></div>' +
+              '</div>' +
+              '<div class="pw-layout-info-card">' +
+                '<span class="pw-layout-info-label">Colunas × linhas</span>' +
+                '<div class="pw-layout-info-value"><strong>' + best.colunas + ' coluna(s) × ' + best.linhas + ' linha(s)</strong></div>' +
+              '</div>' +
+              '<div class="pw-layout-info-card">' +
+                '<span class="pw-layout-info-label">Total de adesivos</span>' +
+                '<div class="pw-layout-info-value"><strong>' + best.totalAdesivos + ' adesivo(s)</strong></div>' +
+              '</div>' +
+            '</div>';
+
+          result.style.display = "grid";
+        }
+
         (function () {
           var btnCalcSize = document.getElementById("btn-calc-size");
           if (!btnCalcSize) return;
@@ -3731,20 +3782,21 @@
             var espacamento = normalizeNumberInput(document.getElementById("pw-size-gap").value);
             var guidance = document.getElementById("pw-size-guidance");
 
-            if (!Number.isFinite(largura) || largura < 0.1 || largura > LARGURA_ESPERADA_CM) {
+            var sizeLayoutResult = document.getElementById("pw-size-layout-result");
+            function erroCalcSize(msg) {
               manualWarning.style.display = "block"; manualWarning.style.color = "var(--danger)";
-              manualWarning.textContent = "A largura do adesivo deve ficar entre 0,10 cm e " + formatCm(LARGURA_ESPERADA_CM) + " cm.";
-              if (guidance) guidance.textContent = ""; return;
+              manualWarning.textContent = msg;
+              if (guidance) guidance.textContent = "";
+              if (sizeLayoutResult) sizeLayoutResult.style.display = "none";
+            }
+            if (!Number.isFinite(largura) || largura < 0.1 || largura > LARGURA_ESPERADA_CM) {
+              erroCalcSize("A largura do adesivo deve ficar entre 0,10 cm e " + formatCm(LARGURA_ESPERADA_CM) + " cm."); return;
             }
             if (!Number.isFinite(altura) || altura < 0.1 || altura > 10000) {
-              manualWarning.style.display = "block"; manualWarning.style.color = "var(--danger)";
-              manualWarning.textContent = "A altura do adesivo deve ficar entre 0,10 cm e 10.000,00 cm.";
-              if (guidance) guidance.textContent = ""; return;
+              erroCalcSize("A altura do adesivo deve ficar entre 0,10 cm e 10.000,00 cm."); return;
             }
             if (!Number.isFinite(alturaDesejada) || alturaDesejada <= 0) {
-              manualWarning.style.display = "block"; manualWarning.style.color = "var(--danger)";
-              manualWarning.textContent = "Informe a altura de folha desejada.";
-              if (guidance) guidance.textContent = ""; return;
+              erroCalcSize("Informe a altura de folha desejada."); return;
             }
             var espacamentoVal = Number.isFinite(espacamento) && espacamento >= 0.5 ? espacamento : 0.5;
 
@@ -3759,14 +3811,8 @@
               productionFile = null;
               resetPaymentState();
 
-              if (guidance) {
-                guidance.innerHTML =
-                  "<strong>Orientação:</strong> " + (best.girada ? "Girada 90°" : "Normal") + " &nbsp;·&nbsp; " +
-                  "<strong>Por fileira:</strong> " + best.colunas + " adesivo" + (best.colunas !== 1 ? "s" : "") + " &nbsp;·&nbsp; " +
-                  "<strong>Fileiras:</strong> " + best.linhas + " &nbsp;·&nbsp; " +
-                  "<strong>Total:</strong> " + best.totalAdesivos + " adesivo" + (best.totalAdesivos !== 1 ? "s" : "") + " &nbsp;·&nbsp; " +
-                  "<strong>Altura real da folha:</strong> " + formatCm(best.alturaReal) + " cm";
-              }
+              if (guidance) guidance.textContent = "";
+              renderizarPreviaTamanho(best, espacamentoVal);
 
               manualWarning.style.display = "block";
               manualWarning.style.color = "#2b7a2b";
@@ -3779,6 +3825,7 @@
               manualWarning.style.color = "var(--danger)";
               manualWarning.textContent = error.message || "Erro ao calcular.";
               if (guidance) guidance.textContent = "";
+              if (sizeLayoutResult) sizeLayoutResult.style.display = "none";
               btnNext2.disabled = true;
             }
           }

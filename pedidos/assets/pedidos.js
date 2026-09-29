@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.413
+// PW_BUILD_VERSION: 1.32.414
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -7806,7 +7806,8 @@
     const defaults = [
       { id: 'order-origin-normal', code: '0001', name: 'Normal', marketplace: false, active: true, protected: true, position: 0 },
       { id: 'order-origin-mercado-livre', code: '0002', name: 'Mercado Livre', marketplace: true, active: true, protected: true, position: 1 },
-      { id: 'order-origin-shopee', code: '0003', name: 'Shopee', marketplace: true, active: true, protected: true, position: 2 }
+      { id: 'order-origin-shopee', code: '0003', name: 'Shopee', marketplace: true, active: true, protected: true, position: 2 },
+      { id: 'order-origin-dtf-uv', code: '0004', name: 'DTF UV Online', marketplace: false, active: true, protected: true, position: 3 }
     ];
     const records = Array.isArray(saved) && saved.length ? saved : defaults;
     return orderedRecords(records.map((entry, index) => {
@@ -7831,7 +7832,8 @@
     const defaults = [
       { id: 'order-origin-normal', code: '0001', name: 'Normal', marketplace: false, active: true, protected: true, position: 0 },
       { id: 'order-origin-mercado-livre', code: '0002', name: 'Mercado Livre', marketplace: true, active: true, protected: true, position: 1 },
-      { id: 'order-origin-shopee', code: '0003', name: 'Shopee', marketplace: true, active: true, protected: true, position: 2 }
+      { id: 'order-origin-shopee', code: '0003', name: 'Shopee', marketplace: true, active: true, protected: true, position: 2 },
+      { id: 'order-origin-dtf-uv', code: '0004', name: 'DTF UV Online', marketplace: false, active: true, protected: true, position: 3 }
     ];
     const saved = readStorage(STORAGE.orderOrigins, null);
     const records = Array.isArray(saved) ? saved.slice() : [];
@@ -11125,7 +11127,10 @@
     let stored = null;
     try { stored = JSON.parse(window.localStorage.getItem(ordersOriginFilterStorageKey()) || 'null'); } catch (error) { stored = null; }
     if (Array.isArray(stored)) {
-      ordersOriginFilters = stored;
+      const activeDefaults = getOrderOrigins().filter(r => r.active !== false).map(r => r.name);
+      const missing = activeDefaults.filter(name => !stored.some(s => normalize(s) === normalize(name)));
+      ordersOriginFilters = missing.length ? [...stored, ...missing] : stored;
+      if (missing.length) saveOrdersOriginFilters();
     } else {
       ordersOriginFilters = getOrderOrigins().filter(record => record.active !== false).map(record => record.name);
       saveOrdersOriginFilters();

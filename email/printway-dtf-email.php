@@ -703,6 +703,7 @@ function pw_dtf_process_admin_actions() {
 
 			if ( $user_id !== get_current_user_id() || 'administrator' === $role || ! current_user_can( 'administrator' ) ) {
 				$user->set_role( $role );
+				pw_dtf_sync_wp_role_to_pedidos( $user, $role );
 			}
 
 			$bypass_post = isset( $_POST['maintenance_bypass'] ) && is_array( $_POST['maintenance_bypass'] )
@@ -739,6 +740,7 @@ function pw_dtf_process_admin_actions() {
 		}
 
 		$user->set_role( $role );
+		pw_dtf_sync_wp_role_to_pedidos( $user, $role );
 		pw_dtf_admin_redirect( 'pw-printway-dtf-uv', 'user_updated', 'usuarios' );
 	}
 
@@ -2082,6 +2084,18 @@ add_action( 'wp_ajax_nopriv_' . PW_DTF_SAVE_CALCULATION_ACTION, 'pw_dtf_save_cal
  * campo Nome de exibição.
  */
 /** Procura o cadastro do cliente no sistema de Pedidos por ID vinculado ou e-mail. */
+function pw_dtf_sync_wp_role_to_pedidos( $user, $role ) {
+	if ( ! $user ) return;
+	$client_type = ( 'revendedor' === $role ) ? 'revenda' : 'direto';
+	$found       = pw_dtf_find_pedidos_client( (int) $user->ID, $user->user_email );
+	if ( ! $found ) return;
+	global $wpdb;
+	$table   = $wpdb->prefix . 'pw_personalizados_clients';
+	$payload = $found['payload'];
+	$payload['clientType'] = $client_type;
+	$wpdb->update( $table, array( 'payload' => wp_json_encode( $payload ) ), array( 'object_id' => $found['id'] ), array( '%s' ), array( '%s' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+}
+
 function pw_dtf_find_pedidos_client( $user_id, $email ) {
 	global $wpdb;
 	$table = $wpdb->prefix . 'pw_personalizados_clients';

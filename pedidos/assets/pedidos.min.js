@@ -8480,13 +8480,13 @@
     if (isClientSelf) {
       const displayName = creatorName || (order.client && order.client.name ? String(order.client.name) : '');
       const tooltip = 'Cadastrado pelo próprio cliente' + (displayName ? ': ' + displayName : '');
-      return '<span class="pw-status-dot pw-reg-source-dot pw-reg-source-client pw-tooltip" data-tooltip="' + escapeHtml(tooltip) + '" aria-label="Cadastrado pelo cliente">●</span>';
+      return '<span class="pw-status-dot pw-reg-source-dot pw-reg-source-client pw-tooltip" data-tooltip="' + escapeHtml(tooltip) + '" aria-label="Cadastrado pelo cliente">C</span>';
     }
     if (!order.registrationSource && !creator.id && !creatorName) return '';
     const role = String(creator.role || '').trim();
     const displayRole = role && role !== 'Cliente' ? role.toLowerCase() : 'colaborador';
     const tooltip = 'Cadastrado por ' + displayRole + (creatorName ? ': ' + creatorName : '');
-    return '<span class="pw-status-dot pw-reg-source-dot pw-reg-source-system pw-tooltip" data-tooltip="' + escapeHtml(tooltip) + '" aria-label="' + escapeHtml('Cadastrado por ' + (creatorName || 'colaborador')) + '">●</span>';
+    return '<span class="pw-status-dot pw-reg-source-dot pw-reg-source-system pw-tooltip" data-tooltip="' + escapeHtml(tooltip) + '" aria-label="' + escapeHtml('Cadastrado por ' + (creatorName || 'colaborador')) + '">A</span>';
   }
 
   function orderInfoLegendHtml() {

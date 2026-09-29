@@ -2382,6 +2382,14 @@
 
         info.style.display = "inline-block";
 
+        /* Exibe tipo de cliente no Step 1 */
+        var clientTypeDisplay = document.getElementById("pw-client-type-display");
+        var clientTypeLabel   = document.getElementById("pw-client-type-label");
+        if (clientTypeDisplay && clientTypeLabel && currentUser) {
+          clientTypeLabel.textContent = currentUser.client_type === "revenda" ? "Revendedor" : "Cliente direto";
+          clientTypeDisplay.style.display = "block";
+        }
+
         const btnPayNow = document.getElementById("btn-pay-now");
         const btnPayLater = document.getElementById("btn-pay-later");
         const payLaterArea = document.getElementById("pw-pay-later-area");

@@ -51,6 +51,10 @@
             visita.
           </p>
 
+          <div id="pw-client-type-display" style="display:none;margin-bottom:14px;background:#eef9f0;border:1px solid #86efac;border-radius:8px;padding:8px 14px;font-size:14px;color:#166534;">
+            Tipo de cliente: <strong id="pw-client-type-label"></strong>
+          </div>
+
           <div class="pw-grid pw-identification-grid">
             <div>
               <label class="pw-field-label" for="sender-name-main">

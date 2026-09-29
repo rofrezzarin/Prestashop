@@ -194,7 +194,7 @@
             </select>
           </div>
 
-          <div class="pw-choice-cards">
+          <div class="pw-choice-cards" style="display:grid;grid-template-columns:repeat(2,200px);gap:20px;justify-content:center;margin-top:8px;">
             <button id="choose-pdf" class="pw-source-card" type="button">
               <div class="pw-source-card-check" aria-hidden="true">✓</div>
               <div class="pw-source-card-icon">

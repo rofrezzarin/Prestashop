@@ -93,7 +93,9 @@
     var gH = Number.isFinite(layout.gapCm) && layout.gapCm >= 0 ? layout.gapCm : vg;
     var sh = Number.isFinite(layout.heightCm) ? layout.heightCm : sheetHeight(r, iH, vg);
     var scale = Math.max(2, Math.min(10, 260 / sw));
-    var svgW = sw * scale, svgH = sh * scale;
+    // pad=2 deixa espaço para o stroke (1px) não ser cortado na borda do SVG
+    var pad = 2;
+    var svgW = sw * scale + pad * 2, svgH = sh * scale + pad * 2;
     var total = c * r;
     var inner;
     if (total > 4000) {
@@ -103,13 +105,13 @@
         ' text-anchor="middle" font-size="' + Math.max(10, scale * 1.4).toFixed(1) + '" fill="#647184">' + total + ' adesivos (detalhe omitido)</text>';
     } else {
       var gW   = c * iW + Math.max(0, c - 1) * gH;
-      var offX = Math.max(0, (sw - gW) / 2) * scale;
+      var offX = Math.max(0, (sw - gW) / 2) * scale + pad;
       var fs   = Math.max(7, Math.min(iW, iH) * scale * 0.32);
       var cells = '';
       for (var row = 0; row < r; row++) {
         for (var col = 0; col < c; col++) {
           var x = offX + col * (iW + gH) * scale;
-          var y = row * (iH + vg) * scale;
+          var y = row * (iH + vg) * scale + pad;
           var w = Math.max(0.5, iW * scale), h = Math.max(0.5, iH * scale);
           var n = row * c + col + 1;
           cells +=

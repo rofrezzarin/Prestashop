@@ -3044,6 +3044,7 @@
 
         cardPdf.addEventListener("click", function () {
             selectSourceCard(cardPdf, cardManual);
+            if (pdfRequiredNotice) pdfRequiredNotice.style.display = "none";
 
             pdfArea.style.display = "block";
 
@@ -3945,6 +3946,15 @@
        AVANÇAR ETAPA 2
        ======================================================== */
 
+        const pdfRequiredNotice = document.getElementById("pw-pdf-required-notice");
+        const pdfRequiredGoto  = document.getElementById("pw-pdf-required-goto");
+        if (pdfRequiredGoto) {
+          pdfRequiredGoto.addEventListener("click", function () {
+            if (pdfRequiredNotice) pdfRequiredNotice.style.display = "none";
+            document.getElementById("choose-pdf").click();
+          });
+        }
+
         btnNext2.addEventListener("click", function () {
           if (!lastComputed) {
             return;
@@ -3954,17 +3964,14 @@
             lastSource === "manual" || lastSource === "images" || lastSource === "size";
 
           if (calculationNeedsProductionPdf && !productionFile) {
-            const selectNow = window.confirm(
-              "A calculadora fornece apenas uma estimativa. Para continuar, é necessário selecionar o PDF final que será produzido e cobrado.\n\nDeseja selecionar o PDF agora?",
-            );
-
-            if (selectNow) {
-              document.getElementById("choose-pdf").click();
+            if (pdfRequiredNotice) {
+              pdfRequiredNotice.style.display = "block";
+              pdfRequiredNotice.scrollIntoView({ behavior: "smooth", block: "nearest" });
             }
-
             return;
           }
 
+          if (pdfRequiredNotice) pdfRequiredNotice.style.display = "none";
           setActiveStep(3);
 
           updateSummary();

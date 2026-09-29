@@ -1694,7 +1694,14 @@ function pw_dtf_prepare_payment() {
 		$customer_type = 'direto';
 	}
 	$requested_points = absint( pw_dtf_post_raw( 'points_used' ) );
+	$rounding = pw_dtf_get_rounding_settings();
+	if ( ! empty( $rounding['round_cm'] ) ) {
+		$height = ceil( $height );
+	}
 	$original = pw_dtf_calculate_server_price( $height, $customer_type );
+	if ( ! is_wp_error( $original ) && ! empty( $rounding['round_price'] ) ) {
+		$original = ceil( round( $original * 100 ) / 10 ) / 10;
+	}
 
 	if ( is_wp_error( $original ) ) {
 		wp_send_json_error( array( 'message' => $original->get_error_message() ), 400 );

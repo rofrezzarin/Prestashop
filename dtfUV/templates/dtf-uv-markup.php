@@ -194,21 +194,28 @@
             </select>
           </div>
 
-          <div class="pw-choice-cards">
-            <div id="choose-pdf" class="pw-source-card" role="button" tabindex="0">
+          <style>
+            .pw-choice-cards{display:flex!important;gap:16px!important;flex-wrap:wrap!important;justify-content:center!important;margin-top:8px!important;width:100%!important;box-sizing:border-box!important;}
+            .pw-source-card{width:180px!important;max-width:180px!important;flex-shrink:0!important;flex-grow:0!important;min-height:240px!important;box-sizing:border-box!important;}
+            .pw-source-card-icon{width:62px!important;height:62px!important;flex-shrink:0!important;}
+            .pw-source-card-desc{white-space:normal!important;word-break:break-word!important;overflow-wrap:break-word!important;}
+            @media(max-width:460px){.pw-source-card{width:100%!important;max-width:100%!important;}}
+          </style>
+          <div class="pw-choice-cards" style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:8px;width:100%;box-sizing:border-box;">
+            <div id="choose-pdf" class="pw-source-card" role="button" tabindex="0" style="width:180px;max-width:180px;flex-shrink:0;flex-grow:0;min-height:240px;box-sizing:border-box;">
               <div class="pw-source-card-check" aria-hidden="true">✓</div>
-              <div class="pw-source-card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+              <div class="pw-source-card-icon" style="width:62px;height:62px;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h1.5a1.5 1.5 0 0 1 0 3H9v-3z" stroke-width="1.5"/><path d="M13 13h2v1.5a1.5 1.5 0 0 1-3 0V13z" stroke-width="1.5"/><line x1="16.5" y1="13" x2="16.5" y2="16" stroke-width="1.5"/><line x1="15" y1="14.5" x2="18" y2="14.5" stroke-width="1.5"/></svg>
               </div>
               <div class="pw-source-card-tag">Arquivo pronto</div>
               <div class="pw-source-card-title">Já tenho o PDF</div>
               <div class="pw-source-card-desc">Envie o arquivo já preparado para impressão. As medidas são lidas automaticamente do documento.</div>
             </div>
 
-            <div id="choose-manual" class="pw-source-card" role="button" tabindex="0">
+            <div id="choose-manual" class="pw-source-card" role="button" tabindex="0" style="width:180px;max-width:180px;flex-shrink:0;flex-grow:0;min-height:240px;box-sizing:border-box;">
               <div class="pw-source-card-check" aria-hidden="true">✓</div>
-              <div class="pw-source-card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg>
+              <div class="pw-source-card-icon" style="width:62px;height:62px;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="5" rx="1"/><circle cx="8" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="18" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="18" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="18" r="1" fill="currentColor" stroke="none"/></svg>
               </div>
               <div class="pw-source-card-tag">Cálculo automático</div>
               <div class="pw-source-card-title">Calculadora de medidas</div>

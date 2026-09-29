@@ -155,41 +155,39 @@
       }
 
       .pw-choice-cards {
-        display: grid;
-        grid-template-columns: repeat(2, 200px);
-        gap: 20px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
         margin-top: 8px;
         justify-content: center;
       }
 
-      .pw-calc .pw-source-card {
+      .pw-source-card {
         position: relative;
-        display: flex !important;
+        display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: flex-start;
         gap: 14px;
-        width: 100%;
-        box-sizing: border-box;
+        width: 180px;
+        flex-shrink: 0;
         min-height: 230px;
         padding: 28px 20px 24px;
-        border: 2px solid #dce8fb !important;
+        border: 2px solid #dce8fb;
         border-radius: 18px;
-        background: #ffffff !important;
-        color: inherit !important;
+        background: #ffffff;
+        color: #333;
         cursor: pointer;
         text-align: center;
-        font-family: inherit;
-        font-size: inherit;
-        font-weight: inherit;
         box-shadow: 0 2px 8px rgba(11,91,215,.06);
         transition: border-color .2s, box-shadow .2s, background .2s, transform .2s;
         box-sizing: border-box;
         overflow: hidden;
+        user-select: none;
       }
 
       /* Linha colorida no topo */
-      .pw-calc .pw-source-card::before {
+      .pw-source-card::before {
         content: '';
         position: absolute;
         top: 0; left: 0; right: 0;
@@ -199,20 +197,20 @@
         transition: background .25s;
       }
 
-      .pw-calc .pw-source-card:hover {
+      .pw-source-card:hover {
         border-color: #93b4f3 !important;
         background: #f8fbff !important;
         box-shadow: 0 8px 24px rgba(11,91,215,.13);
         transform: translateY(-4px);
       }
 
-      .pw-calc .pw-source-card.is-selected {
+      .pw-source-card.is-selected {
         border-color: var(--primary) !important;
         background: #eef4ff !important;
         box-shadow: 0 0 0 1px var(--primary), 0 8px 24px rgba(11,91,215,.16);
       }
 
-      .pw-calc .pw-source-card.is-selected::before {
+      .pw-source-card.is-selected::before {
         background: linear-gradient(90deg, var(--primary), #93b4f3);
       }
 
@@ -235,7 +233,7 @@
         pointer-events: none;
       }
 
-      .pw-calc .pw-source-card.is-selected .pw-source-card-check {
+      .pw-source-card.is-selected .pw-source-card-check {
         opacity: 1;
         transform: scale(1);
       }
@@ -253,11 +251,11 @@
         transition: background .2s, color .2s, transform .2s;
       }
 
-      .pw-calc .pw-source-card:hover .pw-source-card-icon {
+      .pw-source-card:hover .pw-source-card-icon {
         transform: scale(1.08);
       }
 
-      .pw-calc .pw-source-card.is-selected .pw-source-card-icon {
+      .pw-source-card.is-selected .pw-source-card-icon {
         background: var(--primary);
         color: #fff;
       }
@@ -273,7 +271,7 @@
         white-space: nowrap;
       }
 
-      .pw-calc .pw-source-card.is-selected .pw-source-card-tag {
+      .pw-source-card.is-selected .pw-source-card-tag {
         background: rgba(11,91,215,.12);
       }
 
@@ -766,6 +764,6 @@
       }
 
       @media (max-width: 460px) {
-        .pw-choice-cards { grid-template-columns: 1fr; }
-        .pw-calc .pw-source-card { min-height: 160px; }
+        .pw-choice-cards { gap: 12px; }
+        .pw-source-card { width: 100%; min-height: 160px; }
       }

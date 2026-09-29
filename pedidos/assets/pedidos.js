@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.417
+// PW_BUILD_VERSION: 1.32.418
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -554,9 +554,9 @@
   }
   function paymentDotStyle(definition, fillStatus) {
     const c = definition.color;
-    if (fillStatus === 'full') return 'background:' + c + ';color:#fff;border-color:' + c + ';';
-    if (fillStatus === 'partial') return 'background:linear-gradient(to right,' + c + ' 50%,#fff 50%);border:1.5px solid ' + c + ';';
-    return 'background:#fff;border:2px solid ' + c + ';color:' + c + ';';
+    if (fillStatus === 'full') return 'background:' + c + ';color:#fff;border:2px solid ' + c + ';';
+    if (fillStatus === 'partial') return 'background:linear-gradient(to right,' + c + ' 50%,#fff 50%);border:2px solid ' + c + ';color:#fff;';
+    return 'background:' + c + '1a;border:2px solid ' + c + ';color:' + c + ';';
   }
   function paymentMethodDotsHtml(order) {
     const methods = getPaymentMethods();
@@ -11964,14 +11964,23 @@
     if (['dtfItem','dtfMovement','dtfCost'].includes(kind)) return deleteExpenseRecords(kind, bulkSelections[kind].slice());
     const ids = bulkSelections[kind].slice();
     if (!ids.length) return;
-    const selected = recordsForKind(kind).filter(item => ids.includes(String(item.id))).map(item => item.record);
+    const selectedItems = recordsForKind(kind).filter(item => ids.includes(String(item.id))).map(item => ({ id: String(item.id), record: item.record }));
+    const selected = selectedItems.map(item => item.record);
     if (kind === 'order') {
       let i = 0;
       let totalDeleted = 0;
+      let skippedDtf = 0;
       const allCascadeClientIds = [];
-      while (i < selected.length) {
-        const singleOrder = selected[i];
-        const navInfo = selected.length > 1 ? { current: i + 1, total: selected.length } : null;
+      const isAdmin = userIsAdministrator(currentUser);
+      while (i < selectedItems.length) {
+        const { id: orderId, record: singleOrder } = selectedItems[i];
+        // Apenas ADM pode excluir pedidos criados pelo cliente via DTF UV Online
+        if (!isAdmin && singleOrder.registrationSource === 'client_dtf') {
+          skippedDtf++;
+          i++;
+          continue;
+        }
+        const navInfo = selectedItems.length > 1 ? { current: i + 1, total: selectedItems.length } : null;
         const decision = await confirmLinkedDeletion('order', [singleOrder], navInfo);
         if (!decision || (!decision.confirmed && !decision.nav)) break;
         if (decision.nav === 'prev') { i = Math.max(0, i - 1); continue; }
@@ -11988,12 +11997,13 @@
               return set && set.size ? { ...order, payments: (order.payments || []).filter((_, idx) => !set.has(idx)) } : order;
             });
           }
-          const ok = await deleteRecord('order', String(singleOrder.id), false, true);
+          const ok = await deleteRecord('order', orderId, false, true);
           if (ok) totalDeleted++;
           if (decision.cascadeClientIds && decision.cascadeClientIds.length) allCascadeClientIds.push(...decision.cascadeClientIds);
         }
         i++;
       }
+      if (skippedDtf) showMessage(skippedDtf + ' pedido(s) DTF UV Online ignorado(s) — apenas administradores podem excluir pedidos feitos pelo cliente.', 'error');
       if (allCascadeClientIds.length) await Promise.all(allCascadeClientIds.map(id => deleteRecord('client', id, false, true)));
       bulkSelections['order'] = [];
       renderOrdersConsultation();

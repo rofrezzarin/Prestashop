@@ -1,6 +1,6 @@
 <!--
   PRINTWAY - PEDIDOS DE PERSONALIZADOS
-  PW_BUILD_VERSION: 1.32.417
+  PW_BUILD_VERSION: 1.32.418
   Bloco isolado para inserir em um widget HTML do WordPress/Elementor.
   Não contém nem altera cabeçalho, rodapé, body ou estilos globais da página.
 -->

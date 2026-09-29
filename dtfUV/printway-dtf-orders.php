@@ -2996,7 +2996,9 @@ function pw_dtf_send_order() {
 	$payment      = pw_dtf_post_text( 'payment_method' );
 	$payment_type = pw_dtf_post_text( 'payment_option' );
 	$pay_later_code = pw_dtf_post_text( 'pay_later_code' );
-	$delivery     = pw_dtf_post_text( 'delivery_method' );
+	$delivery         = pw_dtf_post_text( 'delivery_method' );
+	$shipping_cost    = pw_dtf_post_decimal( 'shipping_cost' );
+	$shipping_service = sanitize_text_field( pw_dtf_post_raw( 'shipping_service' ) );
 	$original     = pw_dtf_post_decimal( 'original_amount' );
 	$points_used  = absint( pw_dtf_post_raw( 'points_used' ) );
 	$points_discount = pw_dtf_post_decimal( 'points_discount' );
@@ -3262,7 +3264,8 @@ function pw_dtf_send_order() {
 			'height'         => $height,
 			'customer_type'  => $customer,
 			'payment_label'  => pw_dtf_payment_label( $payment, $payment_type, $alternative_payments ),
-			'delivery_label' => $delivery_options[ $delivery ],
+			'delivery_label' => $delivery_options[ $delivery ] . ( 'entrega_taxa' === $delivery && $shipping_service ? ' (' . $shipping_service . ' — R$ ' . number_format( $shipping_cost, 2, ',', '.' ) . ')' : '' ),
+			'shipping_cost'  => $shipping_cost,
 			'points_used'    => $points_used,
 			'points_discount'=> $points_discount,
 			'payment_session'=> $payment_session_id,
@@ -3409,7 +3412,7 @@ function pw_dtf_send_order() {
 			'customer_type'      => $customer,
 			'payment_method'     => $payment,
 			'payment_label'      => pw_dtf_payment_option_label( $payment, $payment_type, $alternative_payments ),
-			'delivery_label'     => isset( $delivery_options[ $delivery ] ) ? $delivery_options[ $delivery ] : $delivery,
+			'delivery_label'     => ( isset( $delivery_options[ $delivery ] ) ? $delivery_options[ $delivery ] : $delivery ) . ( 'entrega_taxa' === $delivery && $shipping_service ? ' (' . $shipping_service . ' — R$ ' . number_format( $shipping_cost, 2, ',', '.' ) . ')' : '' ),
 			'points_used'        => $points_used,
 			'points_discount'    => $points_discount,
 			'instructions'       => $instructions,
@@ -3495,6 +3498,7 @@ function pw_dtf_store_order( $data ) {
 		'_pw_dtf_whatsapp'       => $data['whatsapp'],
 		'_pw_dtf_amount'         => $data['amount'],
 		'_pw_dtf_original'       => $data['original'],
+		'_pw_dtf_shipping_cost'  => isset( $data['shipping_cost'] ) ? $data['shipping_cost'] : 0,
 		'_pw_dtf_points_used'    => isset( $data['points_used'] ) ? $data['points_used'] : 0,
 		'_pw_dtf_points_discount'=> isset( $data['points_discount'] ) ? $data['points_discount'] : 0,
 		'_pw_dtf_payment_session'=> isset( $data['payment_session'] ) ? sanitize_text_field( $data['payment_session'] ) : '',
@@ -3630,3 +3634,78 @@ function pw_dtf_is_valid_pay_later_code( $submitted_code, $user ) {
 	$stored_code = pw_dtf_get_user_unlock_code( (int) $user->ID );
 	return '' !== $stored_code && hash_equals( $stored_code, $submitted_code );
 }
+
+/* ─────────────────────────────────────────────────────────
+   COTAÇÃO DE FRETE (MELHOR ENVIO) — para a calculadora DTF UV
+   ───────────────────────────────────────────────────────── */
+function pw_dtf_quote_shipping() {
+	if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', PW_DTF_NONCE_ACTION ) ) {
+		wp_send_json_error( array( 'message' => 'Sessão expirada. Recarregue a página.' ), 403 );
+	}
+
+	if ( ! function_exists( 'pw_personalizados_melhorenvio_token_value' ) ) {
+		wp_send_json_error( array( 'message' => 'Integração Melhor Envio não disponível.' ), 503 );
+	}
+
+	$token = pw_personalizados_melhorenvio_token_value();
+	if ( ! $token ) {
+		wp_send_json_error( array( 'message' => 'Frete via transportadora não configurado. Entre em contato com a gráfica.' ), 503 );
+	}
+
+	$dest_cep = preg_replace( '/\D+/', '', (string) ( $_POST['cep'] ?? '' ) );
+	if ( 8 !== strlen( $dest_cep ) ) {
+		wp_send_json_error( array( 'message' => 'CEP inválido.' ), 422 );
+	}
+
+	$origin_cep = preg_replace( '/\D+/', '', (string) get_option( 'woocommerce_store_postcode', '' ) );
+	if ( 8 !== strlen( $origin_cep ) ) {
+		wp_send_json_error( array( 'message' => 'CEP de origem da gráfica não configurado.' ), 503 );
+	}
+
+	$body = array(
+		'from'    => array( 'postal_code' => $origin_cep ),
+		'to'      => array( 'postal_code' => $dest_cep ),
+		'volumes' => array( array(
+			'height'    => 4,
+			'width'     => 30,
+			'length'    => 40,
+			'weight'    => 0.5,
+			'insurance' => 20,
+		) ),
+		'options' => array( 'receipt' => false, 'own_hand' => false ),
+	);
+
+	$result = pw_personalizados_melhorenvio_call( $token, 'POST', '/shipment/calculate', $body );
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error( array( 'message' => $result->get_error_message() ), 422 );
+	}
+
+	$enabled_carriers = get_option( 'pw_personalizados_melhorenvio_carriers', array() );
+	$enabled_carriers = is_array( $enabled_carriers ) ? array_map( 'strval', $enabled_carriers ) : array();
+	$raw      = is_array( $result['data'] ) ? $result['data'] : array();
+	$services = array();
+	foreach ( $raw as $service ) {
+		if ( ! is_array( $service ) || ! empty( $service['error'] ) ) { continue; }
+		$price = $service['custom_price'] ?? $service['price'] ?? null;
+		if ( ! is_numeric( $price ) || (float) $price <= 0 ) { continue; }
+		$company    = is_array( $service['company'] ?? null ) ? $service['company'] : array();
+		$carrier_id = (string) ( $company['id'] ?? '' );
+		if ( $enabled_carriers && $carrier_id && ! in_array( $carrier_id, $enabled_carriers, true ) ) { continue; }
+		$services[] = array(
+			'code'          => (string) ( $service['id'] ?? '' ),
+			'description'   => (string) ( $service['name'] ?? 'Entrega' ),
+			'carrier'       => (string) ( $company['name'] ?? '' ),
+			'price'         => round( (float) $price, 2 ),
+			'deliveryTime'  => max( 0, (int) ( $service['custom_delivery_time'] ?? $service['delivery_time'] ?? 0 ) ),
+		);
+	}
+
+	if ( ! $services ) {
+		wp_send_json_error( array( 'message' => 'Nenhuma opção de frete disponível para este CEP. Verifique o CEP ou entre em contato com a gráfica.' ), 422 );
+	}
+
+	usort( $services, static function ( $a, $b ) { return $a['price'] <=> $b['price']; } );
+	wp_send_json_success( array( 'services' => $services ) );
+}
+add_action( 'wp_ajax_pw_dtf_quote_shipping',        'pw_dtf_quote_shipping' );
+add_action( 'wp_ajax_nopriv_pw_dtf_quote_shipping', 'pw_dtf_quote_shipping' );

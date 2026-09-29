@@ -2,6 +2,11 @@
    CONFIGURAÇÃO
    ============================================================ */
 
+      if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js";
+      }
+
       const XML_PATH = "/dtfuv/precos.xml";
       const LARGURA_ESPERADA_CM = 28;
       const ESPACAMENTO_VERTICAL_PADRAO_CM = 0.5;
@@ -27,6 +32,8 @@
       let POINTS_BALANCE = 0;
       let POINTS_USED = 0;
       let POINTS_DISCOUNT = 0;
+      let SHIPPING_COST = 0;
+      let SHIPPING_SERVICE = null;
       let PAYMENT_SESSION_ID = "";
       let PAYMENT_CONTROLS_LOCKED = false;
       let CALCULATION_SESSION_ID = "";
@@ -88,7 +95,7 @@
 
       function getPayableAmount() {
         const gross = lastComputed ? Number(lastComputed.precoFinal || 0) : 0;
-        return Math.max(0, gross - Number(POINTS_DISCOUNT || 0));
+        return Math.max(0, gross + Number(SHIPPING_COST || 0) - Number(POINTS_DISCOUNT || 0));
       }
 
       function ensureValidPixCrc(payload) {
@@ -557,9 +564,8 @@
         });
 
         for (let i = 1; i <= 3; i++) {
-          document
-            .getElementById("connector-" + i)
-            .classList.toggle("active", i < n);
+          const conn = document.getElementById("connector-" + i);
+          if (conn) conn.classList.toggle("active", i < n);
         }
 
         if (n > previousStep) {
@@ -1627,6 +1633,10 @@
               'input[name="pw-delivery-method"]:checked',
             )?.value || "",
 
+          shipping_cost: Number(SHIPPING_COST || 0).toFixed(2),
+
+          shipping_service: SHIPPING_SERVICE ? (SHIPPING_SERVICE.carrier + " — " + SHIPPING_SERVICE.description) : "",
+
           height_cm: Number(lastComputed.alturaOriginal).toFixed(2),
 
           customer_type: lastComputed.tipo,
@@ -2578,6 +2588,7 @@
           }
 
           btnNext3.disabled = !canAdvance;
+          if (btnFinish) btnFinish.disabled = !canAdvance;
           deliveryStatus.textContent = hasDelivery
             ? "Forma de recebimento selecionada."
             : "Selecione como deseja receber o pedido.";
@@ -2784,6 +2795,9 @@
 
         deliveryMethods.forEach(function(input) {
           input.addEventListener("change", function() {
+            if (input.value === "entrega_taxa") {
+              pwDtfOpenShippingModal();
+            }
             const ready = refreshAdvanceAvailability();
             if (ready && PAYMENT_METHOD === "pix") {
               paymentMsg.style.color = "#2b7a2b";
@@ -2796,6 +2810,146 @@
             }
           });
         });
+
+        /* ========================================================
+       MODAL DE FRETE (MELHOR ENVIO)
+       ======================================================== */
+
+        (function() {
+          var shippingModal    = document.getElementById("pw-shipping-modal");
+          var shippingCepInput = document.getElementById("pw-shipping-cep");
+          var shippingCalcBtn  = document.getElementById("pw-shipping-calc-btn");
+          var shippingError    = document.getElementById("pw-shipping-error");
+          var shippingLoading  = document.getElementById("pw-shipping-loading");
+          var shippingResults  = document.getElementById("pw-shipping-results");
+          var shippingCards    = document.getElementById("pw-shipping-cards");
+          var shippingCancel   = document.getElementById("pw-shipping-cancel-btn");
+          var shippingConfirm  = document.getElementById("pw-shipping-confirm-btn");
+          var selectedShippingOption = null;
+
+          function fmtCepInput(v) {
+            var d = v.replace(/\D/g, "").slice(0, 8);
+            return d.length > 5 ? d.slice(0, 5) + "-" + d.slice(5) : d;
+          }
+          if (shippingCepInput) {
+            shippingCepInput.addEventListener("input", function() {
+              shippingCepInput.value = fmtCepInput(shippingCepInput.value);
+            });
+          }
+
+          window.pwDtfOpenShippingModal = function() {
+            if (!shippingModal) return;
+            selectedShippingOption = null;
+            if (shippingConfirm) shippingConfirm.disabled = true;
+            if (shippingError) { shippingError.style.display = "none"; shippingError.textContent = ""; }
+            if (shippingLoading) shippingLoading.style.display = "none";
+            if (shippingResults) shippingResults.style.display = "none";
+            if (shippingCards) shippingCards.innerHTML = "";
+            var prefillCep = "";
+            if (currentUser && currentUser.cep) prefillCep = currentUser.cep;
+            else {
+              var cepEl = document.getElementById("sender-cep");
+              if (cepEl && cepEl.value) prefillCep = cepEl.value;
+            }
+            if (prefillCep && shippingCepInput) {
+              shippingCepInput.value = fmtCepInput(prefillCep.replace(/\D/g,""));
+            }
+            shippingModal.style.display = "flex";
+            document.body.style.overflow = "hidden";
+            if (shippingCepInput) shippingCepInput.focus();
+          };
+
+          function pwDtfCloseShippingModal(revertDelivery) {
+            if (!shippingModal) return;
+            shippingModal.style.display = "none";
+            document.body.style.overflow = "";
+            if (revertDelivery) {
+              deliveryMethods.forEach(function(r) { r.checked = false; });
+              SHIPPING_COST = 0;
+              SHIPPING_SERVICE = null;
+              refreshAdvanceAvailability();
+              updateSummary();
+            }
+          }
+
+          if (shippingCancel) shippingCancel.addEventListener("click", function() { pwDtfCloseShippingModal(true); });
+          shippingModal && shippingModal.addEventListener("click", function(e) {
+            if (e.target === shippingModal) pwDtfCloseShippingModal(true);
+          });
+
+          async function pwDtfCalcShipping() {
+            var cep = shippingCepInput ? shippingCepInput.value.replace(/\D/g,"") : "";
+            if (cep.length !== 8) {
+              if (shippingError) { shippingError.textContent = "Informe um CEP válido com 8 dígitos."; shippingError.style.display = "block"; }
+              return;
+            }
+            if (shippingError) { shippingError.style.display = "none"; shippingError.textContent = ""; }
+            if (shippingLoading) shippingLoading.style.display = "block";
+            if (shippingResults) shippingResults.style.display = "none";
+            if (shippingCards) shippingCards.innerHTML = "";
+            selectedShippingOption = null;
+            if (shippingConfirm) shippingConfirm.disabled = true;
+            if (shippingCalcBtn) shippingCalcBtn.disabled = true;
+            try {
+              var ajaxUrl = (window.PW_SERVER_DATA && window.PW_SERVER_DATA.ajax_url) || "/wp-admin/admin-ajax.php";
+              var form = new URLSearchParams();
+              form.append("action", "pw_dtf_quote_shipping");
+              form.append("nonce", window.printway_dtf_nonce || "");
+              form.append("cep", cep);
+              var resp = await fetch(ajaxUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }, body: form.toString() });
+              var json = await resp.json();
+              if (shippingLoading) shippingLoading.style.display = "none";
+              if (!json.success || !json.data || !json.data.services || !json.data.services.length) {
+                throw new Error((json.data && json.data.message) || "Nenhuma opção de frete disponível para este CEP.");
+              }
+              var services = json.data.services;
+              if (shippingCards) {
+                shippingCards.innerHTML = "";
+                services.forEach(function(svc) {
+                  var card = document.createElement("label");
+                  card.style.cssText = "display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;";
+                  card.innerHTML = '<input type="radio" name="pw-shipping-option" value="' + svc.code + '" style="flex-shrink:0;accent-color:var(--primary)">' +
+                    '<div style="flex:1;min-width:0">' +
+                    '<div style="font-weight:600;font-size:15px">' + svc.carrier + ' — ' + svc.description + '</div>' +
+                    '<div class="muted" style="font-size:13px;margin-top:2px">' + (svc.deliveryTime > 0 ? svc.deliveryTime + ' dia(s) útil(eis)' : '') + '</div>' +
+                    '</div>' +
+                    '<div style="font-weight:700;font-size:16px;color:var(--primary);white-space:nowrap">R$ ' + svc.price.toFixed(2).replace('.', ',') + '</div>';
+                  card.querySelector("input").addEventListener("change", function() {
+                    document.querySelectorAll("#pw-shipping-cards label").forEach(function(l) { l.style.borderColor = "#e2e8f0"; l.style.background = ""; });
+                    card.style.borderColor = "var(--primary)";
+                    card.style.background = "#f0fdf4";
+                    selectedShippingOption = svc;
+                    if (shippingConfirm) shippingConfirm.disabled = false;
+                  });
+                  shippingCards.appendChild(card);
+                });
+              }
+              if (shippingResults) shippingResults.style.display = "block";
+            } catch(e) {
+              if (shippingLoading) shippingLoading.style.display = "none";
+              if (shippingError) { shippingError.textContent = e.message || "Erro ao calcular frete."; shippingError.style.display = "block"; }
+            } finally {
+              if (shippingCalcBtn) shippingCalcBtn.disabled = false;
+            }
+          }
+
+          if (shippingCalcBtn) shippingCalcBtn.addEventListener("click", pwDtfCalcShipping);
+          if (shippingCepInput) shippingCepInput.addEventListener("keydown", function(e) { if (e.key === "Enter") pwDtfCalcShipping(); });
+
+          if (shippingConfirm) shippingConfirm.addEventListener("click", function() {
+            if (!selectedShippingOption) return;
+            SHIPPING_COST = Number(selectedShippingOption.price) || 0;
+            SHIPPING_SERVICE = selectedShippingOption;
+            pwDtfCloseShippingModal(false);
+            var deliveryStatusEl = document.getElementById("pw-delivery-status");
+            if (deliveryStatusEl) {
+              deliveryStatusEl.textContent = "Entrega via " + selectedShippingOption.carrier + " — " + selectedShippingOption.description + " (+ R$ " + SHIPPING_COST.toFixed(2).replace(".",",") + ")";
+            }
+            refreshAdvanceAvailability();
+            updateSummary();
+            resetPaymentState();
+          });
+        })();
 
         /* ========================================================
        RESET PAGAMENTO
@@ -2831,6 +2985,9 @@
           LAST_PIX_COPY_VALUE = "";
 
           proofInput.value = "";
+
+          SHIPPING_COST = 0;
+          SHIPPING_SERVICE = null;
 
           btnNext3.disabled = true;
           btnNext3.style.display = "";
@@ -2912,6 +3069,9 @@
                 ? "Revendedor"
                 : "Cliente Direto"),
           ];
+          if (SHIPPING_COST > 0 && SHIPPING_SERVICE) {
+            lines.push("Frete: " + SHIPPING_SERVICE.carrier + " — R$ " + SHIPPING_COST.toFixed(2).replace(".", ","));
+          }
 
           summaryText.innerText = lines.join("\n");
 
@@ -3930,7 +4090,7 @@
 
           if (pdfRequiredNotice) pdfRequiredNotice.style.display = "none";
           setActiveStep(3);
-
+          updateFinalPdfLink();
           updateSummary();
         });
 

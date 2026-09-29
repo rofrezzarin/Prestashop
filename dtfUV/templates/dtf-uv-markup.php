@@ -30,21 +30,14 @@
 
         <div class="pw-step" data-step="2">
           <div class="dot">2</div>
-          <div class="label">Fonte do cálculo</div>
+          <div class="label">Calcular</div>
         </div>
 
         <div class="pw-step-connector" id="connector-2"></div>
 
         <div class="pw-step" data-step="3">
           <div class="dot">3</div>
-          <div class="label">Pagamento</div>
-        </div>
-
-        <div class="pw-step-connector" id="connector-3"></div>
-
-        <div class="pw-step" data-step="4">
-          <div class="dot">4</div>
-          <div class="label">Finalizar</div>
+          <div class="label">Finalização</div>
         </div>
       </div>
 
@@ -362,7 +355,7 @@
 
         <div id="step-3" class="step" style="display: none">
           <h3 style="margin: 0 0 8px; color: var(--primary)">
-            Resumo e pagamento
+            Finalização
           </h3>
 
           <div class="pw-payment-summary-grid">
@@ -503,43 +496,7 @@
 
           </div>
 
-          <div class="pw-actions-bottom">
-            <button id="btn-back-3" class="pw-btn ghost" type="button">
-              Voltar
-            </button>
-
-            <button id="btn-finish-no-pay" class="pw-btn ghost" type="button" style="display:none">
-              Finalizar sem pagar
-            </button>
-
-            <button id="btn-next-3" class="pw-btn" type="button" disabled>
-              Avançar
-            </button>
-          </div>
-        </div>
-
-        <!-- =========================================================
-     ETAPA 4
-     ========================================================= -->
-
-        <div id="step-4" class="step" style="display: none">
-          <h3 style="margin: 0 0 8px; color: var(--primary)">
-            Finalizar solicitação
-          </h3>
-
-          <div class="pw-final-box">
-            Após clicar em <strong>Finalizar</strong>, seus dados, o arquivo
-            PDF, o comprovante e as informações complementares serão enviados
-            para a gráfica.
-
-            <br /><br />
-
-            A equipe verificará se está tudo correto, fará a conferência real do
-            pagamento e, estando tudo certo, iniciará a produção do arquivo PDF
-            enviado.
-          </div>
-
-          <div class="pw-final-file" id="final-pdf-box" style="display: none">
+          <div class="pw-final-file" id="final-pdf-box" style="display: none;margin-top:16px">
             <strong>Arquivo para produção:</strong>
 
             <a
@@ -564,11 +521,19 @@
           <div id="send-status" class="muted" style="margin-top: 12px"></div>
 
           <div class="pw-actions-bottom">
-            <button id="btn-back-4" class="pw-btn ghost" type="button">
+            <button id="btn-back-3" class="pw-btn ghost" type="button">
               Voltar
             </button>
 
-            <button id="btn-finish" class="pw-btn" type="button">
+            <button id="btn-finish-no-pay" class="pw-btn ghost" type="button" style="display:none">
+              Finalizar sem pagar
+            </button>
+
+            <button id="btn-next-3" class="pw-btn" type="button" disabled style="display:none">
+              Avançar
+            </button>
+
+            <button id="btn-finish" class="pw-btn" type="button" disabled>
               Finalizar
             </button>
           </div>
@@ -580,6 +545,38 @@
             >Acompanhe seu pedido</a>
             <button id="btn-new-order" class="pw-btn ghost" type="button">Fazer novo pedido</button>
           </div>
+        </div>
+
+        <!-- step-4 kept in DOM (hidden, never shown) so JS references don't crash -->
+        <div id="step-4" style="display:none" aria-hidden="true">
+          <button id="btn-back-4" type="button" style="display:none"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+     MODAL DE FRETE (MELHOR ENVIO)
+     ========================================================= -->
+    <div id="pw-shipping-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center;" aria-modal="true" role="dialog" aria-labelledby="pw-shipping-modal-title">
+      <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:540px;width:calc(100% - 32px);max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.22);">
+        <h3 id="pw-shipping-modal-title" style="margin:0 0 6px;color:var(--primary)">Calcular frete</h3>
+        <p class="muted" style="margin:0 0 16px;font-size:14px">Informe o CEP de entrega para ver as opções disponíveis.</p>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
+          <div style="flex:1;min-width:160px">
+            <label class="pw-field-label" for="pw-shipping-cep">CEP de entrega</label>
+            <input id="pw-shipping-cep" class="pw-input" type="text" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" />
+          </div>
+          <button id="pw-shipping-calc-btn" class="pw-btn" type="button" style="white-space:nowrap">Calcular frete</button>
+        </div>
+        <div id="pw-shipping-error" style="display:none;color:var(--danger);font-size:14px;margin-bottom:10px"></div>
+        <div id="pw-shipping-loading" style="display:none;text-align:center;padding:18px 0;color:var(--muted)">Calculando opções de frete…</div>
+        <div id="pw-shipping-results" style="display:none">
+          <div style="font-size:13px;font-weight:600;color:#444;margin-bottom:10px">Selecione a opção de entrega:</div>
+          <div id="pw-shipping-cards" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+        <div style="margin-top:18px;display:flex;justify-content:flex-end;gap:8px">
+          <button id="pw-shipping-cancel-btn" class="pw-btn ghost" type="button">Cancelar</button>
+          <button id="pw-shipping-confirm-btn" class="pw-btn" type="button" disabled>Confirmar frete</button>
         </div>
       </div>
     </div>

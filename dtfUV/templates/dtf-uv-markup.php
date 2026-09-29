@@ -335,7 +335,7 @@
 
           <div id="pw-pdf-required-notice" style="display:none;margin-bottom:12px;background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:14px 16px;font-size:14px;color:#78350f;line-height:1.5;">
             <strong style="display:block;margin-bottom:6px;">PDF necessário para continuar</strong>
-            Para continuar com o pedido, clique em <strong>"Já tenho o PDF"</strong> e anexe o arquivo em PDF para checagem automática.
+            Antes de continuar, precisa anexar um arquivo PDF para impressão. Largura do arquivo 28cm e altura a desejada. Dentro dessa área pode colocar quantas imagens quiser, desde que mantenha espaço de pelo menos 0,5cm cada uma para conseguir cortar depois. Após o envio, seu arquivo será analisado e caso tenha algum problema, entraremos em contato antes de produzir. <strong>Fundo transparente (cores brancas serão impressas).</strong>
             <br><button id="pw-pdf-required-goto" type="button" style="margin-top:10px;background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Selecionar PDF agora</button>
           </div>
 

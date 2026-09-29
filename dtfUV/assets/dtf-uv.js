@@ -3722,7 +3722,7 @@
                 '<div class="pw-layout-info-value"><strong>' + formatCm(best.itemW) + ' cm × ' + formatCm(best.itemH) + ' cm' + (best.rotated ? ' (girada 90°)' : '') + '</strong></div>' +
               '</div>' +
               '<div class="pw-layout-info-card">' +
-                '<span class="pw-layout-info-label">Adesivos por fileira × fileiras</span>' +
+                '<span class="pw-layout-info-label">Adesivos coluna × linhas</span>' +
                 '<div class="pw-layout-info-value"><strong>' + best.columns + ' × ' + best.rows + '</strong></div>' +
               '</div>' +
               '<div class="pw-layout-info-card">' +

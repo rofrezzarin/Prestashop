@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.420
+// PW_BUILD_VERSION: 1.32.421
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -11860,17 +11860,12 @@
     // Para pedidos: cliente vinculado (só leitura) + faturamentos com checkboxes
     // Para outros tipos: lista genérica de vínculos
     if (kind === 'order') {
-      const linkedClients = [];
-      blocks.forEach(block => {
-        const c = orderLinkedActiveClient(block.record);
-        if (c && !linkedClients.find(x => String(x.id) === String(c.id))) linkedClients.push(c);
-      });
       if (!blocks.length) {
         list.innerHTML = '<p style="color:#475569">Mover <strong>' + records.length + '</strong> pedido(s) selecionado(s) para a Lixeira?</p>';
         list.hidden = false;
       } else {
-        list.innerHTML = '';
-        list.hidden = true;
+        list.innerHTML = '<ul>' + blocks.flatMap(block => block.topics.map(t => '<li>' + escapeHtml(t) + '</li>')).join('') + '</ul>';
+        list.hidden = false;
       }
       const allPayments = [];
       blocks.forEach(block => {

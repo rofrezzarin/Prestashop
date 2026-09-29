@@ -376,3 +376,38 @@ pedidos/
   servidor` / `✓ [texto]`. Implementado via `_renderChecklist()` em `pedidos.js/min.js`
   + classe `.pw-msg-step` em `pedidos.css/min.css`.
 
+---
+
+### 2026-09-29 — v1.32.404 / v1.32.405
+
+**O que foi feito (v1.32.404):**
+- Remoção da barra de administração do WordPress para todos os usuários logados (`add_filter('show_admin_bar', '__return_false')` em `printway.php`).
+- Botão de teste no WhatsApp (Configurações): campo "Número de teste" + botão "Enviar teste" ao lado do campo "Número oficial para atendimento". Envia a mensagem da aba selecionada em "Mensagem por situação" para o número informado.
+- Único botão de salvar em Configurações: removidos botões internos das abas; apenas o botão externo `#pw-save-settings`. Verde quando sem alterações pendentes (`pw-cfg-save-clean`), vermelho pulsante quando há alterações (`pw-cfg-save-dirty`). Inclui ícone de salvamento. Funções `markCfgDirty()` / `markCfgClean()`.
+- Corrido bug em `pw_personalizados_import_dtf_order()`: campos `name` e `createdAt` não eram exportados ao nível correto para `pw_personalizados_record_columns()`, causando pedidos DTF UV sem nome e sem data no módulo de pedidos. Corrigido adicionando `'name' => $client_name` e `'createdAt' => $now_sql` ao array `$order`.
+- Numeração sequencial de pedidos DTF UV: `pw_dtf_generate_order_reference()` agora chama `pw_personalizados_reserve_order_number()` primeiro (número de 5 dígitos), fallback para formato antigo apenas em erro.
+- PDF do cliente anexado ao pedido DTF UV na importação (`art_entry` construído a partir de `pdf_attachment_id`/`pdf_attachment_url`).
+
+**O que foi feito (v1.32.405):**
+- Restauração da última view/aba ao recarregar a página: `showSystemView()` salva a view em `sessionStorage`; `activateSettingsTab()` salva a aba de configurações. No startup, lê `sessionStorage` e navega para a última posição em vez de sempre ir para o dashboard.
+
+**Decisões técnicas:**
+- `sessionStorage` escolhido sobre `localStorage` — persiste durante a sessão (recarregamentos incluindo o botão "Atualizar para a nova versão"), mas limpa ao fechar o navegador/aba. Ideal para "voltar onde estava".
+- Todas as chamadas `sessionStorage` envolvidas em `try/catch` para não quebrar em contextos de privacidade (Safari private mode, etc.).
+- ZIP de entrega contém SOMENTE os arquivos alterados, com caminhos relativos à raiz do plugin (`pedidos/...`), sem prefixo. Extrair em `wp-content/plugins/printway/`.
+
+**Arquivos alterados (v1.32.404):**
+- `printway.php`
+- `printway-pedidos.php` (raiz)
+- `pedidos/printway-pedidos.php`
+- `pedidos/assets/pedidos.js` + `pedidos.min.js`
+- `pedidos/assets/pedidos.css`
+- `pedidos/templates/pedidos-app.php`
+- `email/printway-dtf-email.php`
+
+**Arquivos alterados (v1.32.405):**
+- `pedidos/assets/pedidos.js` + `pedidos.min.js`
+- `pedidos/assets/pedidos.css`
+- `pedidos/templates/pedidos-app.php`
+- `pedidos/printway-pedidos.php`
+

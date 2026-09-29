@@ -232,7 +232,7 @@ function pw_printway_group_pix_menu() {
 	remove_submenu_page( 'pw-printway', 'pw-printway' );
 }
 
-$email_module = PW_PRINTWAY_DIR . 'email/printway-dtf-email.php';
+$dtf_orders_module = PW_PRINTWAY_DIR . 'dtfUV/printway-dtf-orders.php';
 $backup_module = PW_PRINTWAY_DIR . 'backup/printway-backup.php';
 $pedidos_module = PW_PRINTWAY_DIR . 'pedidos/printway-pedidos.php';
 
@@ -251,7 +251,7 @@ $mercadolivre_module = PW_PRINTWAY_DIR . 'mercadolivre/printway-mercadolivre.php
  * loja), mesmo padrão do módulo Mercado Livre acima. */
 $shopee_module = PW_PRINTWAY_DIR . 'shopee/printway-shopee.php';
 
-pw_printway_require_module( $email_module, 'pw_dtf_disable_calculator_cache', 'email' );
+pw_printway_require_module( $dtf_orders_module, 'pw_dtf_disable_calculator_cache', 'dtf-uv' );
 pw_printway_require_module( $backup_module, 'pw_printway_backup_components', 'backup' );
 pw_printway_require_module( $pedidos_module, 'pw_personalizados_storage_keys', 'pedidos' );
 pw_printway_require_module( $editor_module, 'dtf_uv_editor_shortcode', 'editor-de-imagens' );

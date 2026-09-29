@@ -1,7 +1,7 @@
 <?php
 /**
- * Módulo: PrintWay DTF UV - Envio de pedidos
- * Description: Recebe os pedidos da calculadora DTF UV e envia os dados e anexos pelo wp_mail().
+ * Módulo: PrintWay DTF UV - Pedidos
+ * Description: Recebe, armazena e gerencia os pedidos da calculadora DTF UV.
  * Version: 2.4.23
  * Author: PrintWay
  */

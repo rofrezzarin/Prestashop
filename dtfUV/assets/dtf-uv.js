@@ -2797,6 +2797,10 @@
           input.addEventListener("change", function() {
             if (input.value === "entrega_taxa") {
               pwDtfOpenShippingModal();
+            } else {
+              SHIPPING_COST = 0;
+              SHIPPING_SERVICE = null;
+              updateSummary();
             }
             const ready = refreshAdvanceAvailability();
             if (ready && PAYMENT_METHOD === "pix") {
@@ -3066,8 +3070,29 @@
             return;
           }
 
-          document.getElementById("valor-total-dtf").textContent =
-            "R$ " + formatBR(getPayableAmount());
+          var valorTotalBox = document.querySelector(".valor-total-box");
+          if (SHIPPING_COST > 0 && SHIPPING_SERVICE && valorTotalBox) {
+            var prodVal = getPayableAmount() - SHIPPING_COST;
+            valorTotalBox.innerHTML =
+              '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">' +
+              '<span class="label">Valor do produto</span>' +
+              '<span style="font-size:15px;font-weight:600">R$ ' + formatBR(prodVal) + '</span>' +
+              '</div>' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">' +
+              '<span class="label">+ Frete (' + SHIPPING_SERVICE.carrier + ')</span>' +
+              '<span style="font-size:15px;font-weight:600">R$ ' + SHIPPING_COST.toFixed(2).replace(".", ",") + '</span>' +
+              '</div>' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:2px solid #e2e8f0;padding-top:8px">' +
+              '<span class="label">Total</span>' +
+              '<div class="value" id="valor-total-dtf">R$ ' + formatBR(getPayableAmount()) + '</div>' +
+              '</div>';
+          } else if (valorTotalBox) {
+            valorTotalBox.innerHTML =
+              '<div class="label">Valor total</div>' +
+              '<div class="value" id="valor-total-dtf">R$ ' + formatBR(getPayableAmount()) + '</div>';
+          } else {
+            document.getElementById("valor-total-dtf").textContent = "R$ " + formatBR(getPayableAmount());
+          }
 
           document.getElementById("valor-produto-dtf").textContent = formatBR(
             getPayableAmount(),
@@ -3084,9 +3109,6 @@
                 ? "Revendedor"
                 : "Cliente Direto"),
           ];
-          if (SHIPPING_COST > 0 && SHIPPING_SERVICE) {
-            lines.push("Frete: " + SHIPPING_SERVICE.carrier + " — R$ " + SHIPPING_COST.toFixed(2).replace(".", ","));
-          }
 
           summaryText.innerText = lines.join("\n");
 

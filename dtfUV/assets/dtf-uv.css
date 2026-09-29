@@ -389,6 +389,15 @@
       .pw-calc-mode-buttons .pw-calc-tab:hover { background:#eef4ff; color:var(--primary); }
       .pw-calc-mode-buttons .pw-calc-tab.is-active { z-index:1; background:#fff; color:#963b00; border-color:#d9b79e; border-bottom-color:#fff; }
       .pw-calc-mode-buttons .pw-calc-tab:focus-visible { outline:3px solid rgba(11,91,215,.22); outline-offset:2px; }
+      .pw-calc-mode-buttons .pw-calc-tab .pw-calc-tab-title { display:block; font-size:13px; font-weight:700; line-height:1.2; }
+      .pw-calc-mode-buttons .pw-calc-tab .pw-calc-tab-desc  { display:block; font-size:11px; font-weight:400; opacity:.72; margin-top:3px; line-height:1.35; }
+      .pw-calc-mode-buttons .pw-calc-tab.is-active .pw-calc-tab-desc { opacity:.85; }
+
+      /* Prévia SVG compartilhada (DTF.renderLayoutPreview) */
+      .pw-dtf-preview { margin-top:12px; }
+      .pw-dtf-preview-caption { font-size:12px; color:#647184; margin-bottom:8px; }
+      .pw-dtf-preview-scroll { max-height:360px; overflow:auto; border:1px solid #dbe5f4; border-radius:10px; padding:10px; background:#fff; display:inline-block; }
+      .pw-dtf-preview-scroll svg { display:block; }
       .pw-images-calculator { display:none; }
       .pw-images-fields { display:grid; grid-template-columns:repeat(4,minmax(130px,190px)) auto; gap:10px; align-items:end; }
       .pw-visible-label { display:block; margin-bottom:5px; font-size:13px; font-weight:700; color:#333; }
@@ -758,8 +767,10 @@
         #pw-pix-copy-area { flex-direction: column; align-items: stretch !important; }
         #pw-pix-copy-area .pw-btn { width: 100%; }
         #pw-pix-qrcode canvas, #pw-pix-qrcode img { max-width: 100% !important; height: auto !important; }
-        .pw-calc-mode-buttons { display:grid; grid-template-columns:1fr 1fr; }
+        .pw-calc-mode-buttons { display:grid; grid-template-columns:1fr 1fr 1fr; }
         .pw-calc-mode-buttons .pw-calc-tab { width:100%; height:100%; margin-right:0; padding:10px 8px; font-size:12px; line-height:1.25; }
+        .pw-calc-mode-buttons .pw-calc-tab .pw-calc-tab-title { font-size:11px; }
+        .pw-calc-mode-buttons .pw-calc-tab .pw-calc-tab-desc  { font-size:10px; }
         .pw-images-fields { grid-template-columns:1fr; }
         .pw-images-fields .pw-images-calc-action { grid-column:auto; }
         .pw-images-fields .pw-btn { width:100%; }

@@ -63,10 +63,18 @@ function pw_dtf_uv_enqueue_assets() {
 	wp_register_script( 'pw-dtf-uv-pdfjs', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js', array(), '2.14.305', true );
 	wp_register_script( 'pw-dtf-uv-tesseractjs', 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js', array(), '6.0.1', true );
 
+	wp_register_script(
+		'pw-dtf-uv-shared',
+		PW_DTF_UV_URL . 'assets/dtf-uv-shared.js',
+		array(),
+		pw_dtf_uv_asset_version( 'assets/dtf-uv-shared.js' ),
+		true
+	);
+
 	wp_enqueue_script(
 		'pw-dtf-uv',
 		PW_DTF_UV_URL . 'assets/dtf-uv.js',
-		array( 'pw-dtf-uv-pdfjs', 'pw-dtf-uv-tesseractjs' ),
+		array( 'pw-dtf-uv-pdfjs', 'pw-dtf-uv-tesseractjs', 'pw-dtf-uv-shared' ),
 		pw_dtf_uv_asset_version( 'assets/dtf-uv.js' ),
 		true
 	);

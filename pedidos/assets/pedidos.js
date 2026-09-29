@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.395
+// PW_BUILD_VERSION: 1.32.396
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -5360,16 +5360,7 @@
    * lógica de "calcularDisposicaoImagens" da calculadora do site.
    */
   function dtfSimBestOrientationForQuantity(width, height, gapCm, quantity) {
-    function test(itemW, itemH, rotated) {
-      const columns = dtfSimColumnsFor(itemW, gapCm);
-      if (!columns) return null;
-      const rows = Math.ceil(quantity / columns);
-      return { columns, rows, itemW, itemH, rotated, heightCm: dtfSimRequiredHeight(rows, itemH), totalFit: columns * rows };
-    }
-    const options = [test(width, height, false), test(height, width, true)].filter(Boolean);
-    if (!options.length) return null;
-    options.sort((a, b) => Math.abs(a.heightCm - b.heightCm) > 1e-6 ? a.heightCm - b.heightCm : b.columns - a.columns);
-    return options[0];
+    return window.DTF.bestOrientationForQuantity(width, height, gapCm, quantity, DTF_SIM_SHEET_WIDTH_CM, DTF_SIM_VERTICAL_GAP_CM);
   }
 
   /**
@@ -5378,17 +5369,7 @@
    * adesivos naquela altura.
    */
   function dtfSimBestOrientationForHeight(width, height, gapCm, desiredHeight) {
-    function test(itemW, itemH, rotated) {
-      const columns = dtfSimColumnsFor(itemW, gapCm);
-      if (!columns) return null;
-      const rows = Math.max(0, Math.floor((desiredHeight + DTF_SIM_VERTICAL_GAP_CM) / (itemH + DTF_SIM_VERTICAL_GAP_CM)));
-      if (!rows) return null;
-      return { columns, rows, itemW, itemH, rotated, heightCm: dtfSimRequiredHeight(rows, itemH), totalFit: columns * rows };
-    }
-    const options = [test(width, height, false), test(height, width, true)].filter(Boolean);
-    if (!options.length) return null;
-    options.sort((a, b) => b.totalFit - a.totalFit);
-    return options[0];
+    return window.DTF.bestOrientationForHeight(width, height, gapCm, desiredHeight, DTF_SIM_SHEET_WIDTH_CM, DTF_SIM_VERTICAL_GAP_CM);
   }
 
   function dtfSimFormatCm(value) {
@@ -5411,46 +5392,8 @@
     host.innerHTML = '<div class="pw-dtf-sim-result-row"><span>' + escapeHtml(message || 'Não foi possível calcular.') + '</span></div>';
   }
 
-  /** Miniatura da disposição dos adesivos na folha (largura sempre 28cm),
-   * com o mesmo espaçamento usado no cálculo (horizontal configurável,
-   * vertical fixo em 0,5cm), centralizados na horizontal e numerados na
-   * ordem em que aparecem na folha. */
   function renderDtfSimLayoutPreview(hostId, layout) {
-    const host = $('#' + hostId);
-    if (!host) return;
-    const { columns, rows, stickerWidth, stickerHeight, sheetWidth, gapCm } = layout;
-    const gapH = Number.isFinite(gapCm) && gapCm >= 0 ? gapCm : DTF_SIM_VERTICAL_GAP_CM;
-    const gapV = DTF_SIM_VERTICAL_GAP_CM;
-    const sheetHeight = dtfSimRequiredHeight(rows, stickerHeight);
-    const scale = Math.max(2, Math.min(10, 260 / sheetWidth));
-    const svgWidth = sheetWidth * scale;
-    const svgHeight = sheetHeight * scale;
-    const totalCells = columns * rows;
-    let inner;
-    if (totalCells > 4000) {
-      inner = '<rect x="0" y="0" width="' + svgWidth.toFixed(1) + '" height="' + svgHeight.toFixed(1) + '" fill="#f8fafc" stroke="#cbd5e1"></rect>' +
-        '<text x="' + (svgWidth / 2).toFixed(1) + '" y="' + (svgHeight / 2).toFixed(1) + '" text-anchor="middle" font-size="' + Math.max(10, scale * 1.4) + '" fill="#647184">' + totalCells + ' adesivos (detalhe omitido)</text>';
-    } else {
-      const gridWidth = columns * stickerWidth + Math.max(0, columns - 1) * gapH;
-      const offsetX = Math.max(0, (sheetWidth - gridWidth) / 2) * scale;
-      const fontSize = Math.max(7, Math.min(stickerWidth, stickerHeight) * scale * 0.32);
-      let cells = '';
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < columns; col++) {
-          const x = offsetX + col * (stickerWidth + gapH) * scale;
-          const y = row * (stickerHeight + gapV) * scale;
-          const w = Math.max(0.5, stickerWidth * scale);
-          const h = Math.max(0.5, stickerHeight * scale);
-          const number = row * columns + col + 1;
-          cells += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="' + Math.min(w, h, 6).toFixed(1) + '" fill="#963b00" fill-opacity="0.16" stroke="#963b00" stroke-width="1"></rect>' +
-            '<text x="' + (x + w / 2).toFixed(1) + '" y="' + (y + h / 2).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" font-size="' + fontSize.toFixed(1) + '" fill="#702c00">' + number + '</text>';
-        }
-      }
-      inner = '<rect x="0" y="0" width="' + svgWidth.toFixed(1) + '" height="' + svgHeight.toFixed(1) + '" fill="#f8fafc" stroke="#cbd5e1"></rect>' + cells;
-    }
-    host.innerHTML = '<div class="pw-dtf-sim-preview-caption">Disposição na folha — ' + dtfSimFormatCm(sheetWidth) + ' × ' + dtfSimFormatCm(sheetHeight) + ' (' + totalCells + ' adesivo' + (totalCells === 1 ? '' : 's') + ')</div>' +
-      '<div class="pw-dtf-sim-preview-scroll"><svg viewBox="0 0 ' + svgWidth.toFixed(1) + ' ' + svgHeight.toFixed(1) + '" width="' + svgWidth.toFixed(1) + '" height="' + svgHeight.toFixed(1) + '" xmlns="http://www.w3.org/2000/svg">' + inner + '</svg></div>';
-    host.hidden = false;
+    window.DTF.renderLayoutPreview(hostId, layout);
   }
 
   function dtfSimCustomerType() {
@@ -18480,15 +18423,15 @@
     if (!best) throw new Error('A imagem não cabe na largura de 28 cm, nem mesmo girada.');
     const calc = await calculateDtfUv(best.heightCm, customerType);
     renderDtfSimResult('pw-dtf-sim-qty-result', [
-      { label: 'Orientação usada', value: best.rotated ? 'Girada 90°' : 'Normal' },
+      { label: 'Medida da folha', value: dtfSimFormatCm(DTF_SIM_SHEET_WIDTH_CM) + ' × ' + dtfSimFormatCm(best.heightCm) },
+      { label: 'Dimensão do adesivo', value: dtfSimFormatCm(best.itemW) + ' × ' + dtfSimFormatCm(best.itemH) + (best.rotated ? ' (girada 90°)' : '') },
       { label: 'Adesivos por fileira', value: String(best.columns) },
-      { label: 'Fileiras necessárias', value: String(best.rows) },
-      { label: 'Altura que a folha vai ficar', value: dtfSimFormatCm(best.heightCm) },
-      { label: 'Quantidade que cabe', value: String(best.totalFit) + (best.totalFit > amount ? ' (arredondado pra fileira cheia)' : '') },
+      { label: 'Fileiras', value: String(best.rows) + (best.totalFit > amount ? ' (fileira cheia arredondada)' : '') },
+      { label: 'Total de adesivos', value: String(best.totalFit) },
       { label: 'Cálculo', value: calc.detail },
-      { label: 'Valor final', value: money.format(calc.price) }
+      { label: 'Valor', value: money.format(calc.price) }
     ]);
-    renderDtfSimLayoutPreview('pw-dtf-sim-qty-preview', { columns: best.columns, rows: best.rows, stickerWidth: best.itemW, stickerHeight: best.itemH, sheetWidth: DTF_SIM_SHEET_WIDTH_CM, gapCm: gap });
+    renderDtfSimLayoutPreview('pw-dtf-sim-qty-preview', best);
     dtfSimLastResult.quantity = {
       mode: 'quantity', customerType, price: calc.price, detail: calc.detail, heightCm: best.heightCm,
       stickerWidth: best.itemW, stickerHeight: best.itemH, columns: best.columns, rows: best.rows,
@@ -18526,15 +18469,15 @@
     if (!best) throw new Error('Nenhum adesivo inteiro cabe nessa altura de folha.');
     const calc = await calculateDtfUv(best.heightCm, customerType);
     renderDtfSimResult('pw-dtf-sim-size-result', [
-      { label: 'Orientação usada', value: best.rotated ? 'Girada 90°' : 'Normal' },
+      { label: 'Medida da folha', value: dtfSimFormatCm(DTF_SIM_SHEET_WIDTH_CM) + ' × ' + dtfSimFormatCm(best.heightCm) },
+      { label: 'Dimensão do adesivo', value: dtfSimFormatCm(best.itemW) + ' × ' + dtfSimFormatCm(best.itemH) + (best.rotated ? ' (girada 90°)' : '') },
       { label: 'Adesivos por fileira', value: String(best.columns) },
       { label: 'Fileiras em ' + dtfSimFormatCm(desiredLength), value: String(best.rows) },
-      { label: 'Quantidade de adesivos', value: String(best.totalFit) },
-      { label: 'Medida final da folha', value: dtfSimFormatCm(best.heightCm) },
+      { label: 'Total de adesivos', value: String(best.totalFit) },
       { label: 'Cálculo', value: calc.detail },
       { label: 'Valor', value: money.format(calc.price) }
     ]);
-    renderDtfSimLayoutPreview('pw-dtf-sim-size-preview', { columns: best.columns, rows: best.rows, stickerWidth: best.itemW, stickerHeight: best.itemH, sheetWidth: DTF_SIM_SHEET_WIDTH_CM, gapCm: gap });
+    renderDtfSimLayoutPreview('pw-dtf-sim-size-preview', best);
     dtfSimLastResult.size = {
       mode: 'size', customerType, price: calc.price, detail: calc.detail, heightCm: best.heightCm,
       stickerWidth: best.itemW, stickerHeight: best.itemH, columns: best.columns, rows: best.rows,

@@ -1,4 +1,4 @@
-/* PW_BUILD_VERSION: 1.32.395 */
+/* PW_BUILD_VERSION: 1.32.396 */
 #pw-personalizados-app,
   #pw-personalizados-app * {
     box-sizing: border-box;
@@ -2639,6 +2639,11 @@
   #pw-personalizados-app .pw-dtf-sim-preview-caption { font-size:12px; color:var(--pw-muted); margin-bottom:8px; }
   #pw-personalizados-app .pw-dtf-sim-preview-scroll { max-height:360px; overflow:auto; border:1px solid var(--pw-border); border-radius:10px; padding:10px; background:#fff; display:inline-block; }
   #pw-personalizados-app .pw-dtf-sim-preview-scroll svg { display:block; }
+  /* Classes escritas por DTF.renderLayoutPreview (dtf-uv-shared.js) — espelham o estilo acima */
+  #pw-personalizados-app .pw-dtf-preview { margin-top:14px; }
+  #pw-personalizados-app .pw-dtf-preview-caption { font-size:12px; color:var(--pw-muted); margin-bottom:8px; }
+  #pw-personalizados-app .pw-dtf-preview-scroll { max-height:360px; overflow:auto; border:1px solid var(--pw-border); border-radius:10px; padding:10px; background:#fff; display:inline-block; }
+  #pw-personalizados-app .pw-dtf-preview-scroll svg { display:block; }
   #pw-personalizados-app .pw-dtf-sim-pdf-preview { margin-top:14px; }
   #pw-personalizados-app .pw-dtf-sim-pdf-preview img { max-width:260px; max-height:340px; border:1px solid var(--pw-border); border-radius:8px; background:#fff; padding:6px; }
   #pw-personalizados-app #pw-dtf-sim-pdf-run, #pw-personalizados-app #pw-dtf-sim-height-run, #pw-personalizados-app #pw-dtf-sim-qty-run, #pw-personalizados-app #pw-dtf-sim-size-run { margin-right:8px; }

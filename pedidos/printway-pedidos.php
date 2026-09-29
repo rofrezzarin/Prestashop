@@ -19,7 +19,7 @@ if ( defined( 'PW_PERSONALIZADOS_MODULE_LOADED' ) ) {
 }
 
 define( 'PW_PERSONALIZADOS_MODULE_LOADED', true );
-define( 'PW_PERSONALIZADOS_VERSION', '1.32.395' );
+define( 'PW_PERSONALIZADOS_VERSION', '1.32.396' );
 define( 'PW_PERSONALIZADOS_DB_VERSION', '1.2.0' );
 define( 'PW_PERSONALIZADOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_PERSONALIZADOS_URL', plugin_dir_url( __FILE__ ) );
@@ -338,10 +338,25 @@ function pw_personalizados_enqueue_assets() {
 		array(),
 		pw_personalizados_asset_version( $css_rel )
 	);
+	// Funções compartilhadas com a calculadora DTF UV pública — carregadas
+	// antes do script principal para que DTF.bestOrientation* e DTF.renderLayoutPreview
+	// estejam disponíveis quando pedidos.js inicializar o Simulador.
+	if ( defined( 'PW_DTF_UV_URL' ) && defined( 'PW_DTF_UV_DIR' ) ) {
+		$shared_rel = 'assets/dtf-uv-shared.js';
+		$shared_path = rtrim( PW_DTF_UV_DIR, '/\\' ) . '/' . $shared_rel;
+		wp_enqueue_script(
+			'pw-dtf-uv-shared',
+			rtrim( PW_DTF_UV_URL, '/' ) . '/' . $shared_rel,
+			array(),
+			file_exists( $shared_path ) ? (string) filemtime( $shared_path ) : '1.0.0',
+			true
+		);
+	}
+
 	wp_enqueue_script(
 		'pw-personalizados',
 		PW_PERSONALIZADOS_URL . $js_rel,
-		array(),
+		defined( 'PW_DTF_UV_URL' ) ? array( 'pw-dtf-uv-shared' ) : array(),
 		pw_personalizados_asset_version( $js_rel ),
 		true
 	);

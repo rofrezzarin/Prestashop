@@ -2860,6 +2860,10 @@
 
           proofValidationSequence++;
 
+          stopMpPixPolling();
+          hideMpStatus();
+          mpPixSeq++;
+
           invalidatePaymentSession();
 
           setPaymentControlsLocked(false);
@@ -3983,6 +3987,124 @@
 
         observeQrContainer();
 
+        /* ── Mercado Pago PIX ── */
+        var mpPixPollTimer = null;
+        var mpPaymentId    = 0;
+        var mpPixSeq       = 0;
+        var mpStatusEl     = document.getElementById("pw-mp-pix-status");
+
+        function stopMpPixPolling() {
+          if (mpPixPollTimer) { clearInterval(mpPixPollTimer); mpPixPollTimer = null; }
+        }
+
+        function setMpStatus(text, color) {
+          if (!mpStatusEl) return;
+          mpStatusEl.style.display = "block";
+          mpStatusEl.style.background = color === "ok" ? "#f0fdf4" : color === "err" ? "#fef2f2" : "#fffbeb";
+          mpStatusEl.style.borderColor = color === "ok" ? "#86efac" : color === "err" ? "#fca5a5" : "#fde68a";
+          mpStatusEl.style.color       = color === "ok" ? "#166534" : color === "err" ? "#991b1b" : "#92400e";
+          mpStatusEl.textContent = text;
+        }
+
+        function hideMpStatus() {
+          if (mpStatusEl) mpStatusEl.style.display = "none";
+        }
+
+        function markMpPixApproved() {
+          stopMpPixPolling();
+          QR_GENERATED    = true;
+          PROOF_VALIDATED = true;
+          proofArea.style.display = "none";
+          setMpStatus("✓ Pagamento confirmado pelo Mercado Pago! Você pode avançar.", "ok");
+          paymentMsg.style.color   = "#2b7a2b";
+          paymentMsg.textContent   = "Pagamento PIX confirmado automaticamente.";
+          refreshAdvanceAvailability();
+        }
+
+        async function pollMpPixStatus(payId, seq) {
+          if (seq !== mpPixSeq) return;
+          try {
+            var form = new URLSearchParams();
+            form.append("action", "pw_dtf_mp_check_pix");
+            form.append("nonce", window.printway_dtf_nonce || "");
+            form.append("payment_id", String(payId));
+            var r = await fetch(window.PW_DTF_UPLOAD_URL || "/wp-admin/admin-ajax.php", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+              body: form.toString(),
+            });
+            var json = await r.json();
+            if (seq !== mpPixSeq) return;
+            var status = (json.data && json.data.status) || "";
+            if (status === "approved") { markMpPixApproved(); }
+            else if (status === "rejected" || status === "cancelled") {
+              stopMpPixPolling();
+              setMpStatus("Pagamento recusado ou cancelado. Tente novamente.", "err");
+            }
+          } catch (e) { /* ignora falha de rede pontual — continua no próximo ciclo */ }
+        }
+
+        async function startMpPixPayment(paymentData, seq) {
+          var ajaxUrl = window.PW_DTF_UPLOAD_URL || "/wp-admin/admin-ajax.php";
+          var form = new URLSearchParams();
+          form.append("action", "pw_dtf_mp_create_pix");
+          form.append("nonce", window.printway_dtf_nonce || "");
+          form.append("payment_session", PAYMENT_SESSION_ID);
+          form.append("amount", String(paymentData.amount));
+          var payerEmail = (window.PW_SERVER_DATA && window.PW_SERVER_DATA.currentUser && window.PW_SERVER_DATA.currentUser.email) || "";
+          form.append("payer_email", payerEmail);
+
+          var r = await fetch(ajaxUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+            body: form.toString(),
+          });
+          var json = await r.json();
+          if (seq !== qrGenerationSequence) return;
+          if (!json.success || !json.data || !json.data.payment_id) {
+            throw new Error((json.data && json.data.message) || "Não foi possível criar o pagamento PIX.");
+          }
+
+          mpPaymentId = json.data.payment_id;
+          mpPixSeq    = ++mpPixSeq;
+          var curMpSeq = mpPixSeq;
+
+          var qrCode  = json.data.qr_code || "";
+          var qrB64   = json.data.qr_code_base64 || "";
+          LAST_PIX_COPY_VALUE = qrCode;
+
+          qrContainer.innerHTML = "";
+          if (qrB64) {
+            var img = document.createElement("img");
+            img.src = "data:image/png;base64," + qrB64;
+            img.alt = "QR Code PIX Mercado Pago";
+            img.style.cssText = "max-width:200px;display:block;margin:0 auto";
+            img.setAttribute("data-pix-payload", qrCode);
+            qrContainer.appendChild(img);
+          } else if (qrCode) {
+            ensureQRCodeLib(function() {
+              qrContainer.innerHTML = "";
+              var el = document.createElement("div");
+              el.setAttribute("data-pix-payload", qrCode);
+              qrContainer.appendChild(el);
+              new QRCode(el, qrCode);
+            });
+          }
+
+          copyArea.style.display = "flex";
+          proofArea.style.display = "none";
+          setMpStatus("⏳ Aguardando confirmação do pagamento PIX...", "wait");
+          paymentMsg.style.color  = "#2b7a2b";
+          paymentMsg.textContent  = "Escaneie o QR ou copie o código Pix. Confirmaremos o pagamento automaticamente.";
+          QR_GENERATED    = true;
+          PROOF_VALIDATED = false;
+          refreshAdvanceAvailability();
+
+          stopMpPixPolling();
+          pollMpPixStatus(mpPaymentId, curMpSeq);
+          mpPixPollTimer = setInterval(function() { pollMpPixStatus(mpPaymentId, curMpSeq); }, 4000);
+        }
+
         btnGenerateQr.addEventListener("click", function () {
           if (!lastComputed) {
             return;
@@ -3991,6 +4113,8 @@
           const sequence = ++qrGenerationSequence;
 
           proofValidationSequence++;
+          stopMpPixPolling();
+          hideMpStatus();
 
           QR_GENERATED = false;
 
@@ -4043,6 +4167,13 @@
                 throw new Error("Este pagamento não precisa gerar um QR Pix.");
               }
 
+              /* Mercado Pago PIX registrado */
+              if (window.PW_SERVER_DATA && window.PW_SERVER_DATA.mp_pix_enabled) {
+                await startMpPixPayment(paymentData, sequence);
+                return;
+              }
+
+              /* PIX estático (fallback — plugin pix-qrcode) */
               const form = new URLSearchParams();
 
               form.append("action", "printway_pix_generate_payload");

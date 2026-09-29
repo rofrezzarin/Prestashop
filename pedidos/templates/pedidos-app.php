@@ -1133,6 +1133,11 @@
               <div class="pw-token-verify-bar" id="pw-token-bar-pix"></div>
               <div class="pw-token-card-desc" id="pw-token-desc-pix">–</div>
             </div>
+            <div class="pw-token-card" data-token-key="mercadopago">
+              <div class="pw-token-card-header"><span class="pw-token-card-name">Mercado Pago</span><div class="pw-token-card-indicators"><button type="button" class="pw-token-cfg-dot-btn pw-token-config-btn" data-token-key="mercadopago" title="Configurar credenciais"><span class="pw-token-cfg-dot" id="pw-token-cfg-mercadopago"></span></button><a class="pw-token-heart-link" href="https://www.mercadopago.com.br/developers/pt/docs/your-integrations/credentials" target="_blank" rel="noopener" title="Credenciais Mercado Pago"><span class="pw-token-heart" id="pw-token-heart-mercadopago"></span></a></div></div>
+              <div class="pw-token-verify-bar" id="pw-token-bar-mercadopago"></div>
+              <div class="pw-token-card-desc" id="pw-token-desc-mercadopago">–</div>
+            </div>
             <div class="pw-token-card" data-token-key="whatsapp">
               <div class="pw-token-card-header"><span class="pw-token-card-name">WhatsApp Business</span><div class="pw-token-card-indicators"><button type="button" class="pw-token-cfg-dot-btn pw-token-config-btn" data-token-key="whatsapp" title="Configurar credenciais"><span class="pw-token-cfg-dot" id="pw-token-cfg-whatsapp"></span></button><a class="pw-token-heart-link" href="https://developers.facebook.com/apps/695239673468018/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener" title="WhatsApp Dev Console"><span class="pw-token-heart" id="pw-token-heart-whatsapp"></span></a></div></div>
               <div class="pw-token-verify-bar" id="pw-token-bar-whatsapp"></div>

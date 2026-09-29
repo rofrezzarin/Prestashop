@@ -1997,6 +1997,9 @@ function pw_dtf_expose_ajax_config() {
 
 	$printed = true;
 
+	$_mp_s = get_option( 'pw_printway_mp_settings', array() );
+	$_mp_token = is_array( $_mp_s ) ? ( $_mp_s['access_token'] ?? '' ) : '';
+
 	$config = array(
 		'ajax_url'          => admin_url( 'admin-ajax.php' ),
 		'dtf_upload_url'    => admin_url( 'admin-ajax.php' ),
@@ -2008,6 +2011,7 @@ function pw_dtf_expose_ajax_config() {
 		'points'            => pw_dtf_get_points_settings(),
 		'price_table'       => pw_dtf_get_unified_price_table(),
 		'rounding'          => pw_dtf_get_rounding_settings(),
+		'mp_pix_enabled'    => ( $_mp_token && strlen( $_mp_token ) > 10 ),
 	);
 
 	if ( is_user_logged_in() ) {
@@ -2069,6 +2073,109 @@ function pw_dtf_enable_shared_excess_values() {
 
 	echo '<script>if(typeof window.parseExcedentes==="function"){window.parseExcedentes=function(xml,tipo){var result={};Array.from(xml.getElementsByTagName("excedente")).filter(function(node){var nodeType=node.getAttribute("tipo");return !nodeType||nodeType===tipo;}).forEach(function(node){var range=node.getAttribute("range"),value=parseFloat(node.getAttribute("valor")||"0");if(!Number.isFinite(value)){return;}if(range){result[range]=value;}else{result.generic=value;}});return result;};}</script>';
 }
+
+/* ─────────────────────────────────────────────────────────
+   MERCADO PAGO — PIX REGISTRADO (DTF UV)
+   ───────────────────────────────────────────────────────── */
+
+function pw_dtf_mp_get_token() {
+	$s = get_option( 'pw_printway_mp_settings', array() );
+	return is_array( $s ) ? ( $s['access_token'] ?? '' ) : '';
+}
+
+function pw_dtf_mp_create_pix() {
+	$nonce = sanitize_text_field( $_POST['nonce'] ?? '' );
+	if ( ! wp_verify_nonce( $nonce, PW_DTF_NONCE_ACTION ) ) {
+		wp_send_json_error( array( 'message' => 'Sessão expirada. Recarregue a página.' ) );
+	}
+	$access_token = pw_dtf_mp_get_token();
+	if ( ! $access_token ) {
+		wp_send_json_error( array( 'message' => 'Mercado Pago não configurado.' ) );
+	}
+	$payment_session = sanitize_text_field( $_POST['payment_session'] ?? '' );
+	if ( ! $payment_session ) {
+		wp_send_json_error( array( 'message' => 'Sessão de pagamento inválida.' ) );
+	}
+	$session_data = get_transient( 'pw_dtf_payment_' . $payment_session );
+	if ( ! $session_data || ! is_array( $session_data ) ) {
+		wp_send_json_error( array( 'message' => 'Sessão de pagamento expirada. Recalcule o pedido.' ) );
+	}
+	$amount = (float) ( $session_data['amount'] ?? 0 );
+	if ( $amount <= 0 ) {
+		wp_send_json_error( array( 'message' => 'Valor do pedido inválido.' ) );
+	}
+	$payer_email = sanitize_email( $_POST['payer_email'] ?? '' );
+	if ( ! is_email( $payer_email ) ) {
+		$payer_email = 'cliente@printway.com.br';
+	}
+	$idempotency_key = 'pw-dtf-pix-' . $payment_session;
+	$body = array(
+		'transaction_amount' => round( $amount, 2 ),
+		'description'        => 'Pedido DTF UV',
+		'payment_method_id'  => 'pix',
+		'payer'              => array( 'email' => $payer_email ),
+	);
+	$response = wp_remote_post( 'https://api.mercadopago.com/v1/payments', array(
+		'headers' => array(
+			'Authorization'    => 'Bearer ' . $access_token,
+			'Content-Type'     => 'application/json',
+			'X-Idempotency-Key' => $idempotency_key,
+		),
+		'body'    => wp_json_encode( $body ),
+		'timeout' => 15,
+	) );
+	if ( is_wp_error( $response ) ) {
+		wp_send_json_error( array( 'message' => 'Erro de conexão com Mercado Pago: ' . $response->get_error_message() ) );
+	}
+	$code = wp_remote_retrieve_response_code( $response );
+	$data = json_decode( wp_remote_retrieve_body( $response ), true );
+	if ( 201 !== (int) $code || empty( $data['id'] ) ) {
+		$msg = $data['message'] ?? ( $data['cause'][0]['description'] ?? 'Erro ao criar pagamento PIX.' );
+		wp_send_json_error( array( 'message' => $msg ) );
+	}
+	$pix = $data['point_of_interaction']['transaction_data'] ?? array();
+	update_user_meta( get_current_user_id(), '_pw_dtf_last_mp_payment', $data['id'] );
+	wp_send_json_success( array(
+		'payment_id'      => $data['id'],
+		'qr_code'         => $pix['qr_code'] ?? '',
+		'qr_code_base64'  => $pix['qr_code_base64'] ?? '',
+		'ticket_url'      => $pix['ticket_url'] ?? '',
+	) );
+}
+add_action( 'wp_ajax_pw_dtf_mp_create_pix',        'pw_dtf_mp_create_pix' );
+add_action( 'wp_ajax_nopriv_pw_dtf_mp_create_pix', 'pw_dtf_mp_create_pix' );
+
+function pw_dtf_mp_check_pix() {
+	$nonce = sanitize_text_field( $_POST['nonce'] ?? '' );
+	if ( ! wp_verify_nonce( $nonce, PW_DTF_NONCE_ACTION ) ) {
+		wp_send_json_error( array( 'message' => 'Nonce inválido.' ) );
+	}
+	$access_token = pw_dtf_mp_get_token();
+	if ( ! $access_token ) {
+		wp_send_json_error( array( 'message' => 'Mercado Pago não configurado.' ) );
+	}
+	$payment_id = (int) ( $_POST['payment_id'] ?? 0 );
+	if ( ! $payment_id ) {
+		wp_send_json_error( array( 'message' => 'ID do pagamento inválido.' ) );
+	}
+	$response = wp_remote_get(
+		'https://api.mercadopago.com/v1/payments/' . $payment_id,
+		array(
+			'headers' => array( 'Authorization' => 'Bearer ' . $access_token ),
+			'timeout' => 10,
+		)
+	);
+	if ( is_wp_error( $response ) ) {
+		wp_send_json_error( array( 'message' => 'Erro de conexão.' ) );
+	}
+	$data = json_decode( wp_remote_retrieve_body( $response ), true );
+	wp_send_json_success( array(
+		'status'        => $data['status'] ?? 'unknown',
+		'status_detail' => $data['status_detail'] ?? '',
+	) );
+}
+add_action( 'wp_ajax_pw_dtf_mp_check_pix',        'pw_dtf_mp_check_pix' );
+add_action( 'wp_ajax_nopriv_pw_dtf_mp_check_pix', 'pw_dtf_mp_check_pix' );
 
 add_action( 'wp_ajax_' . PW_DTF_AJAX_ACTION, 'pw_dtf_send_order' );
 add_action( 'wp_ajax_nopriv_' . PW_DTF_AJAX_ACTION, 'pw_dtf_send_order' );

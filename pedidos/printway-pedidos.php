@@ -3352,6 +3352,14 @@ function pw_personalizados_tokens_status() {
 		'label'  => $has_pix ? 'Chave Pix configurada' : 'Sem chave Pix',
 	);
 
+	// Mercado Pago
+	$mp_settings  = get_option( 'pw_printway_mp_settings', array() );
+	$mp_token     = is_array( $mp_settings ) ? ( $mp_settings['access_token'] ?? '' ) : '';
+	$tokens['mercadopago'] = array(
+		'status' => ( $mp_token && strlen( $mp_token ) > 10 ) ? 'ok' : 'missing',
+		'label'  => ( $mp_token && strlen( $mp_token ) > 10 ) ? 'Token configurado' : 'Sem token',
+	);
+
 	// WhatsApp Business
 	$wa_token    = get_option( 'pw_personalizados_wa_token', '' );
 	$wa_phone_id = get_option( 'pw_personalizados_wa_phone_id', '' );
@@ -3650,6 +3658,14 @@ function pw_personalizados_token_config_get() {
 				array( 'id' => 'pix_key', 'label' => 'Chave Pix', 'is_set' => ! empty( $pix['key'] ) || ! empty( $pix['pix_key'] ) ),
 			),
 		),
+		'mercadopago' => array(
+			'label' => 'Mercado Pago',
+			'type'  => 'form',
+			'note'  => 'Use o Access Token de Produção gerado no painel de credenciais do Mercado Pago. Quando configurado, a calculadora DTF UV gera QR Pix registrado com confirmação automática de pagamento.',
+			'fields' => array(
+				array( 'id' => 'access_token', 'label' => 'Access Token (Produção)', 'is_set' => ! empty( ( get_option( 'pw_printway_mp_settings', array() ) )['access_token'] ?? '' ) ),
+			),
+		),
 		'whatsapp' => array(
 			'label'  => 'WhatsApp Business (Meta)',
 			'type'   => 'form',
@@ -3691,6 +3707,14 @@ function pw_personalizados_token_config_save() {
 				if ( ! is_array( $s ) ) $s = array();
 				$s['key'] = $values['pix_key'];
 				update_option( 'pw_printway_pix_settings', $s );
+			}
+			break;
+		case 'mercadopago':
+			if ( ! empty( $values['access_token'] ) ) {
+				$s = get_option( 'pw_printway_mp_settings', array() );
+				if ( ! is_array( $s ) ) $s = array();
+				$s['access_token'] = $values['access_token'];
+				update_option( 'pw_printway_mp_settings', $s );
 			}
 			break;
 		case 'whatsapp':

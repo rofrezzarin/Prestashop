@@ -442,6 +442,8 @@
 
             <div id="payment-msg" style="margin-top: 10px"></div>
 
+            <div id="pw-mp-pix-status" style="display:none;margin-top:12px;padding:12px 16px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:14px;color:#166534;"></div>
+
             <div id="pw-pix-qrcode" style="margin-top: 12px"></div>
 
             <!-- COPIAR PIX -->

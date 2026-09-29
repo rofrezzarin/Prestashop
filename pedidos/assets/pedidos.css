@@ -1,4 +1,4 @@
-/* PW_BUILD_VERSION: 1.32.416 */
+/* PW_BUILD_VERSION: 1.32.417 */
 #pw-personalizados-app,
   #pw-personalizados-app * {
     box-sizing: border-box;
@@ -2603,6 +2603,9 @@
   #pw-personalizados-app button.pw-payment-method-dot { padding:0; font-family:inherit; line-height:1; cursor:pointer; }
   #pw-personalizados-app button.pw-payment-method-dot:hover { transform:translateY(-1px); box-shadow:0 4px 9px rgba(15,23,42,.24); }
   #pw-personalizados-app .pw-payment-method-add { --pw-status-color:#fff; --pw-status-text:#334155; --pw-status-border:#94a3b8; }
+  #pw-personalizados-app .pw-payment-method-dot.pw-payment-none { box-shadow:none; }
+  #pw-personalizados-app .pw-payment-method-dot.pw-payment-partial { color:#fff; text-shadow:0 0 3px rgba(0,0,0,.55); }
+  #pw-personalizados-app .pw-payment-method-dot.pw-payment-none.pw-payment-method-add { border:2px solid #94a3b8; color:#94a3b8; background:#fff; }
   #pw-personalizados-app .pw-payment-method-legend:empty { display:none; }
   #pw-personalizados-app .pw-registry-kind-paymentMethod #pw-new-registry-record,
   #pw-personalizados-app .pw-registry-kind-paymentMethod #pw-print-registry,

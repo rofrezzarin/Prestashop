@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.416
+// PW_BUILD_VERSION: 1.32.417
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -545,14 +545,28 @@
     if (order && order.paymentMethod) names.push(order.paymentMethod);
     return Array.from(new Set(names));
   }
+  function orderPaymentFillStatus(order) {
+    const paid = Number(order && order.paid || 0);
+    if (paid <= 0.005) return 'none';
+    const total = adjustedOrderTotal(order || {});
+    if (total > 0.005 && paid < total - 0.005) return 'partial';
+    return 'full';
+  }
+  function paymentDotStyle(definition, fillStatus) {
+    const c = definition.color;
+    if (fillStatus === 'full') return 'background:' + c + ';color:#fff;border-color:' + c + ';';
+    if (fillStatus === 'partial') return 'background:linear-gradient(to right,' + c + ' 50%,#fff 50%);border:1.5px solid ' + c + ';';
+    return 'background:#fff;border:2px solid ' + c + ';color:' + c + ';';
+  }
   function paymentMethodDotsHtml(order) {
     const methods = getPaymentMethods();
     const names = paymentMethodsForOrder(order);
-    if (!names.length) return '<button type="button" class="pw-status-dot pw-payment-method-dot pw-payment-method-add" data-payment-order="' + escapeHtml(order && order.orderNumber || '') + '" title="Registrar pagamento" aria-label="Registrar pagamento">$</button>';
+    const fillStatus = orderPaymentFillStatus(order);
+    if (!names.length) return '<button type="button" class="pw-status-dot pw-payment-method-dot pw-payment-method-add pw-payment-none" data-payment-order="' + escapeHtml(order && order.orderNumber || '') + '" title="Registrar pagamento" aria-label="Registrar pagamento">$</button>';
     return '<div class="pw-status-dots">' + names.map(name => {
       const index = Math.max(0, methods.findIndex(method => method.name === name));
       const definition = paymentMethodDefinition(name, index);
-      return '<button type="button" class="pw-status-dot pw-payment-method-dot" style="' + statusVisualStyle(definition) + '" data-payment-order="' + escapeHtml(order && order.orderNumber || '') + '" title="' + escapeHtml(name + ' — abrir pagamentos do pedido') + '" aria-label="Abrir pagamentos do pedido">' + escapeHtml(definition.code) + '</button>';
+      return '<button type="button" class="pw-status-dot pw-payment-method-dot pw-payment-' + fillStatus + '" style="' + paymentDotStyle(definition, fillStatus) + '" data-payment-order="' + escapeHtml(order && order.orderNumber || '') + '" title="' + escapeHtml(name + ' — abrir pagamentos do pedido') + '" aria-label="Abrir pagamentos do pedido">' + escapeHtml(definition.code) + '</button>';
     }).join('') + '</div>';
   }
   function paymentMethodLegendHtml() {

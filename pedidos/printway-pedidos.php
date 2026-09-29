@@ -3355,10 +3355,20 @@ function pw_personalizados_tokens_status() {
 	// Mercado Pago
 	$mp_settings  = get_option( 'pw_printway_mp_settings', array() );
 	$mp_token     = is_array( $mp_settings ) ? ( $mp_settings['access_token'] ?? '' ) : '';
-	$tokens['mercadopago'] = array(
-		'status' => ( $mp_token && strlen( $mp_token ) > 10 ) ? 'ok' : 'missing',
-		'label'  => ( $mp_token && strlen( $mp_token ) > 10 ) ? 'Token configurado' : 'Sem token',
-	);
+	if ( $mp_token && strlen( $mp_token ) > 10 ) {
+		$mp_resp = wp_remote_get( 'https://api.mercadopago.com/v1/payment_methods?marketplace=NONE', array(
+			'timeout' => 8,
+			'headers' => array( 'Authorization' => 'Bearer ' . $mp_token ),
+		) );
+		$mp_code = is_wp_error( $mp_resp ) ? 0 : wp_remote_retrieve_response_code( $mp_resp );
+		if ( $mp_code === 200 ) {
+			$tokens['mercadopago'] = array( 'status' => 'ok', 'label' => 'Token válido — Pix ativo' );
+		} else {
+			$tokens['mercadopago'] = array( 'status' => 'error', 'label' => 'Token inválido (código ' . $mp_code . ')' );
+		}
+	} else {
+		$tokens['mercadopago'] = array( 'status' => 'missing', 'label' => 'Sem token' );
+	}
 
 	// WhatsApp Business
 	$wa_token    = get_option( 'pw_personalizados_wa_token', '' );

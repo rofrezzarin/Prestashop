@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.404
+// PW_BUILD_VERSION: 1.32.405
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -10123,6 +10123,7 @@
     if (viewName === 'trash') renderTrash();
     if (viewName === 'settings') renderSettings();
     root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    try { sessionStorage.setItem('pw_last_view', viewName); } catch(e) {}
     return true;
   }
 
@@ -16776,6 +16777,7 @@
     if (name === 'tokens') { loadTokensStatus(); verifyTokensStatus(); }
     if (name === 'whatsapp') loadWhatsAppSettings();
     if (name === 'nfe') { loadNfeNotificationSettings(); }
+    try { sessionStorage.setItem('pw_last_settings_tab', name); } catch(e) {}
   }
   $$('[data-settings-tab]').forEach(button => button.addEventListener('click', () => activateSettingsTab(button.dataset.settingsTab)));
 
@@ -19226,8 +19228,16 @@
       if (userIsAdministrator(currentUser)) startShopeeNotificationPolling();
       startOrderNotificationPolling();
       startNfeNotificationPolling();
-      const initialView = userIsAdministrator(currentUser) || canAccessMenu('dashboard') ? 'dashboard' : ((menuAccessDefinitions.find(item => item.view && canAccessMenu(item.key)) || {}).view || '');
-      if (initialView) showSystemView(initialView);
+      const defaultView = userIsAdministrator(currentUser) || canAccessMenu('dashboard') ? 'dashboard' : ((menuAccessDefinitions.find(item => item.view && canAccessMenu(item.key)) || {}).view || '');
+      let restoredView = ''; try { restoredView = sessionStorage.getItem('pw_last_view') || ''; } catch(e) {}
+      const initialView = restoredView || defaultView;
+      if (initialView) {
+        showSystemView(initialView);
+        if (initialView === 'settings') {
+          let restoredTab = ''; try { restoredTab = sessionStorage.getItem('pw_last_settings_tab') || ''; } catch(e) {}
+          if (restoredTab) activateSettingsTab(restoredTab);
+        }
+      }
       else {
         $$('.pw-system-view').forEach(view => view.classList.remove('pw-active'));
         showMessage('Este usuário não possui nenhum menu de tela liberado. Solicite acesso ao administrador.', 'error');

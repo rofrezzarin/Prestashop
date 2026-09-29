@@ -3702,6 +3702,96 @@
         })();
 
         /* ========================================================
+       ALTURA DA FOLHA — melhorOrientacaoParaAltura + btn-calc-size
+       ======================================================== */
+
+        function melhorOrientacaoParaAltura(largura, altura, espacamentoH, alturaDesejada) {
+          function testar(itemLargura, itemAltura, girada) {
+            var colunas = Math.floor((LARGURA_ESPERADA_CM + espacamentoH) / (itemLargura + espacamentoH));
+            if (!colunas) return null;
+            var linhas = Math.max(0, Math.floor((alturaDesejada + ESPACAMENTO_VERTICAL_PADRAO_CM) / (itemAltura + ESPACAMENTO_VERTICAL_PADRAO_CM)));
+            if (!linhas) return null;
+            var alturaReal = linhas * itemAltura + Math.max(0, linhas - 1) * ESPACAMENTO_VERTICAL_PADRAO_CM;
+            return { colunas: colunas, linhas: linhas, itemLargura: itemLargura, itemAltura: itemAltura, girada: girada, alturaReal: alturaReal, totalAdesivos: colunas * linhas };
+          }
+          var opcoes = [testar(largura, altura, false), testar(altura, largura, true)].filter(Boolean);
+          if (!opcoes.length) return null;
+          opcoes.sort(function(a, b) { return b.totalAdesivos - a.totalAdesivos; });
+          return opcoes[0];
+        }
+
+        (function () {
+          var btnCalcSize = document.getElementById("btn-calc-size");
+          if (!btnCalcSize) return;
+
+          async function executarCalcSize() {
+            var largura = normalizeNumberInput(document.getElementById("pw-size-width").value);
+            var altura = normalizeNumberInput(document.getElementById("pw-size-height").value);
+            var alturaDesejada = normalizeNumberInput(document.getElementById("pw-size-length").value);
+            var espacamento = normalizeNumberInput(document.getElementById("pw-size-gap").value);
+            var guidance = document.getElementById("pw-size-guidance");
+
+            if (!Number.isFinite(largura) || largura < 0.1 || largura > LARGURA_ESPERADA_CM) {
+              manualWarning.style.display = "block"; manualWarning.style.color = "var(--danger)";
+              manualWarning.textContent = "A largura do adesivo deve ficar entre 0,10 cm e " + formatCm(LARGURA_ESPERADA_CM) + " cm.";
+              if (guidance) guidance.textContent = ""; return;
+            }
+            if (!Number.isFinite(altura) || altura < 0.1 || altura > 10000) {
+              manualWarning.style.display = "block"; manualWarning.style.color = "var(--danger)";
+              manualWarning.textContent = "A altura do adesivo deve ficar entre 0,10 cm e 10.000,00 cm.";
+              if (guidance) guidance.textContent = ""; return;
+            }
+            if (!Number.isFinite(alturaDesejada) || alturaDesejada <= 0) {
+              manualWarning.style.display = "block"; manualWarning.style.color = "var(--danger)";
+              manualWarning.textContent = "Informe a altura de folha desejada.";
+              if (guidance) guidance.textContent = ""; return;
+            }
+            var espacamentoVal = Number.isFinite(espacamento) && espacamento >= 0.5 ? espacamento : 0.5;
+
+            try {
+              var best = melhorOrientacaoParaAltura(largura, altura, espacamentoVal, alturaDesejada);
+              if (!best) throw new Error("Nenhum adesivo inteiro cabe nessa altura de folha.");
+
+              var calc = await calcularComAltura(best.alturaReal, tipo.value);
+              lastComputed = calc;
+              lastHeightCm = best.alturaReal;
+              lastSource = "size";
+              productionFile = null;
+              resetPaymentState();
+
+              if (guidance) {
+                guidance.innerHTML =
+                  "<strong>Orientação:</strong> " + (best.girada ? "Girada 90°" : "Normal") + " &nbsp;·&nbsp; " +
+                  "<strong>Por fileira:</strong> " + best.colunas + " adesivo" + (best.colunas !== 1 ? "s" : "") + " &nbsp;·&nbsp; " +
+                  "<strong>Fileiras:</strong> " + best.linhas + " &nbsp;·&nbsp; " +
+                  "<strong>Total:</strong> " + best.totalAdesivos + " adesivo" + (best.totalAdesivos !== 1 ? "s" : "") + " &nbsp;·&nbsp; " +
+                  "<strong>Altura real da folha:</strong> " + formatCm(best.alturaReal) + " cm";
+              }
+
+              manualWarning.style.display = "block";
+              manualWarning.style.color = "#2b7a2b";
+              manualWarning.textContent = "Largura " + formatCm(LARGURA_ESPERADA_CM) + " cm × Altura " + formatCm(best.alturaReal) + " cm — Total: R$ " + formatBR(calc.precoFinal);
+              btnNext2.disabled = false;
+              updateSummary();
+              recordAbandonedCalculation();
+            } catch (error) {
+              manualWarning.style.display = "block";
+              manualWarning.style.color = "var(--danger)";
+              manualWarning.textContent = error.message || "Erro ao calcular.";
+              if (guidance) guidance.textContent = "";
+              btnNext2.disabled = true;
+            }
+          }
+
+          btnCalcSize.addEventListener("click", executarCalcSize);
+
+          ["pw-size-width", "pw-size-height", "pw-size-length", "pw-size-gap"].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); btnCalcSize.click(); } });
+          });
+        })();
+
+        /* ========================================================
        TIPO CLIENTE
        ======================================================== */
 
@@ -3712,10 +3802,16 @@
           const imageCalculateButton = document.getElementById(
             "btn-calc-images",
           );
+          const sizeCalculator = document.getElementById("pw-size-calculator");
+          const sizeCalculateButton = document.getElementById("btn-calc-size");
 
           const imageCalculatorIsVisible =
             imageCalculator &&
             window.getComputedStyle(imageCalculator).display !== "none";
+
+          const sizeCalculatorIsVisible =
+            sizeCalculator &&
+            window.getComputedStyle(sizeCalculator).display !== "none";
 
           /*
            * A calculadora por quantidade possui seu próprio fluxo completo:
@@ -3732,6 +3828,19 @@
             return;
           }
 
+          /*
+           * A calculadora de altura de folha também precisa recalcular com o
+           * novo tipo de cliente, mantendo os campos preenchidos.
+           */
+          if (
+            sizeCalculatorIsVisible &&
+            lastSource === "size" &&
+            sizeCalculateButton
+          ) {
+            sizeCalculateButton.click();
+            return;
+          }
+
           if (!lastHeightCm || !lastComputed) {
             return;
           }
@@ -3744,7 +3853,7 @@
             updateSummary();
             recordAbandonedCalculation();
 
-            if (lastSource === "manual" || lastSource === "images") {
+            if (lastSource === "manual" || lastSource === "images" || lastSource === "size") {
               manualWarning.style.display = "block";
 
               manualWarning.style.color = "#2b7a2b";
@@ -3787,7 +3896,7 @@
           }
 
           const calculationNeedsProductionPdf =
-            lastSource === "manual" || lastSource === "images";
+            lastSource === "manual" || lastSource === "images" || lastSource === "size";
 
           if (calculationNeedsProductionPdf && !productionFile) {
             const selectNow = window.confirm(

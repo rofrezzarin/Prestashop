@@ -238,8 +238,9 @@
 
           <div id="manual-area" style="margin-top: 14px; display: none">
             <div class="pw-calc-mode-buttons" role="tablist" aria-label="Modo de cálculo">
-              <button id="pw-mode-total-height" class="pw-calc-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="pw-height-calculator" onclick="document.getElementById('pw-height-calculator').style.display='grid';document.getElementById('pw-images-calculator').style.display='none';this.classList.add('is-active');this.setAttribute('aria-selected','true');document.getElementById('pw-mode-images').classList.remove('is-active');document.getElementById('pw-mode-images').setAttribute('aria-selected','false');">Sei a altura total do arquivo</button>
-              <button id="pw-mode-images" class="pw-calc-tab" type="button" role="tab" aria-selected="false" aria-controls="pw-images-calculator" onclick="document.getElementById('pw-height-calculator').style.display='none';document.getElementById('pw-images-calculator').style.display='block';this.classList.add('is-active');this.setAttribute('aria-selected','true');document.getElementById('pw-mode-total-height').classList.remove('is-active');document.getElementById('pw-mode-total-height').setAttribute('aria-selected','false');">Sei a quantidade e o tamanho das imagens</button>
+              <button id="pw-mode-total-height" class="pw-calc-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="pw-height-calculator" onclick="document.getElementById('pw-height-calculator').style.display='grid';document.getElementById('pw-images-calculator').style.display='none';document.getElementById('pw-size-calculator').style.display='none';this.classList.add('is-active');this.setAttribute('aria-selected','true');document.getElementById('pw-mode-images').classList.remove('is-active');document.getElementById('pw-mode-images').setAttribute('aria-selected','false');document.getElementById('pw-mode-sheet-size').classList.remove('is-active');document.getElementById('pw-mode-sheet-size').setAttribute('aria-selected','false');">Sei a altura total do arquivo</button>
+              <button id="pw-mode-images" class="pw-calc-tab" type="button" role="tab" aria-selected="false" aria-controls="pw-images-calculator" onclick="document.getElementById('pw-height-calculator').style.display='none';document.getElementById('pw-images-calculator').style.display='block';document.getElementById('pw-size-calculator').style.display='none';this.classList.add('is-active');this.setAttribute('aria-selected','true');document.getElementById('pw-mode-total-height').classList.remove('is-active');document.getElementById('pw-mode-total-height').setAttribute('aria-selected','false');document.getElementById('pw-mode-sheet-size').classList.remove('is-active');document.getElementById('pw-mode-sheet-size').setAttribute('aria-selected','false');">Sei a quantidade e o tamanho das imagens</button>
+              <button id="pw-mode-sheet-size" class="pw-calc-tab" type="button" role="tab" aria-selected="false" aria-controls="pw-size-calculator" onclick="document.getElementById('pw-height-calculator').style.display='none';document.getElementById('pw-images-calculator').style.display='none';document.getElementById('pw-size-calculator').style.display='block';this.classList.add('is-active');this.setAttribute('aria-selected','true');document.getElementById('pw-mode-total-height').classList.remove('is-active');document.getElementById('pw-mode-total-height').setAttribute('aria-selected','false');document.getElementById('pw-mode-images').classList.remove('is-active');document.getElementById('pw-mode-images').setAttribute('aria-selected','false');">Altura da folha?</button>
             </div>
 
             <div id="pw-height-calculator" class="pw-grid pw-manual-grid">
@@ -300,6 +301,18 @@
                 <div class="pw-layout-preview-wrap"><div class="pw-layout-preview-title">Prévia aproximada da página</div><div id="pw-layout-preview" class="pw-layout-preview" aria-label="Prévia da disposição das imagens"></div></div>
                 <div id="pw-layout-summary" class="pw-layout-summary"></div>
               </div>
+            </div>
+
+            <div id="pw-size-calculator" class="pw-images-calculator" style="display:none">
+              <p class="muted" style="margin:0 0 12px">Informe o tamanho do adesivo e a altura de folha que pretende usar. O sistema testa as duas orientações e usa a que encaixa mais adesivos naquela altura.</p>
+              <div class="pw-images-fields">
+                <div><label class="pw-visible-label" for="pw-size-width">Largura do adesivo (cm)</label><input id="pw-size-width" class="pw-input" type="number" inputmode="decimal" min="0.10" max="28" step="0.10" placeholder="Ex.: 5" /></div>
+                <div><label class="pw-visible-label" for="pw-size-height">Altura do adesivo (cm)</label><input id="pw-size-height" class="pw-input" type="number" inputmode="decimal" min="0.10" max="10000" step="0.10" placeholder="Ex.: 5" /></div>
+                <div><label class="pw-visible-label" for="pw-size-length">Altura de folha desejada (cm)</label><input id="pw-size-length" class="pw-input" type="number" inputmode="decimal" min="1" step="0.1" placeholder="Ex.: 30" /></div>
+                <div><label class="pw-visible-label" for="pw-size-gap">Espaço entre adesivos (cm)</label><input id="pw-size-gap" class="pw-input" type="number" inputmode="decimal" min="0.50" max="28" step="0.50" value="0.50" /></div>
+                <div class="pw-images-calc-action"><button id="btn-calc-size" class="pw-btn small" type="button">Calcular</button></div>
+              </div>
+              <div id="pw-size-guidance" class="pw-cutting-note" aria-live="polite"></div>
             </div>
 
             <div

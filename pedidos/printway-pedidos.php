@@ -19,7 +19,7 @@ if ( defined( 'PW_PERSONALIZADOS_MODULE_LOADED' ) ) {
 }
 
 define( 'PW_PERSONALIZADOS_MODULE_LOADED', true );
-define( 'PW_PERSONALIZADOS_VERSION', '1.32.419' );
+define( 'PW_PERSONALIZADOS_VERSION', '1.32.420' );
 define( 'PW_PERSONALIZADOS_DB_VERSION', '1.2.0' );
 define( 'PW_PERSONALIZADOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PW_PERSONALIZADOS_URL', plugin_dir_url( __FILE__ ) );
@@ -4081,7 +4081,7 @@ function pw_personalizados_import_dtf_order( $data ) {
 		'requestedDelivery'      => '',
 		'actualDelivery'         => '',
 		'status'                 => 'Criação da arte',
-		'origin'                 => 'DTF UV Online',
+		'origin'                 => 'Normal',
 		'marketplaceOrderNumber' => '',
 		'registrationSource'     => 'client_dtf',
 		'createdBy'              => $creator,

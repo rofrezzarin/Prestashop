@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.419
+// PW_BUILD_VERSION: 1.32.420
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -7826,8 +7826,7 @@
     const defaults = [
       { id: 'order-origin-normal', code: '0001', name: 'Normal', marketplace: false, active: true, protected: true, position: 0 },
       { id: 'order-origin-mercado-livre', code: '0002', name: 'Mercado Livre', marketplace: true, active: true, protected: true, position: 1 },
-      { id: 'order-origin-shopee', code: '0003', name: 'Shopee', marketplace: true, active: true, protected: true, position: 2 },
-      { id: 'order-origin-dtf-uv', code: '0004', name: 'DTF UV Online', marketplace: false, active: true, protected: true, position: 3 }
+      { id: 'order-origin-shopee', code: '0003', name: 'Shopee', marketplace: true, active: true, protected: true, position: 2 }
     ];
     const records = Array.isArray(saved) && saved.length ? saved : defaults;
     return orderedRecords(records.map((entry, index) => {
@@ -7852,8 +7851,7 @@
     const defaults = [
       { id: 'order-origin-normal', code: '0001', name: 'Normal', marketplace: false, active: true, protected: true, position: 0 },
       { id: 'order-origin-mercado-livre', code: '0002', name: 'Mercado Livre', marketplace: true, active: true, protected: true, position: 1 },
-      { id: 'order-origin-shopee', code: '0003', name: 'Shopee', marketplace: true, active: true, protected: true, position: 2 },
-      { id: 'order-origin-dtf-uv', code: '0004', name: 'DTF UV Online', marketplace: false, active: true, protected: true, position: 3 }
+      { id: 'order-origin-shopee', code: '0003', name: 'Shopee', marketplace: true, active: true, protected: true, position: 2 }
     ];
     const saved = readStorage(STORAGE.orderOrigins, null);
     const records = Array.isArray(saved) ? saved.slice() : [];
@@ -8720,6 +8718,21 @@
       if (syncOrderFinalization(order)) changed = true;
     });
     if (changed) writeStorage(STORAGE.orders, orders, { immediate: true });
+  }
+
+  function migrateDtfUvOriginToNormal() {
+    const orders = getOrders();
+    let changed = false;
+    orders.forEach(order => {
+      if (order.origin === 'DTF UV Online') { order.origin = 'Normal'; changed = true; }
+      if (order.client && order.client.origin === 'DTF UV Online') { order.client.origin = 'Normal'; changed = true; }
+    });
+    if (changed) writeStorage(STORAGE.orders, orders, { immediate: true });
+    const origins = readStorage(STORAGE.orderOrigins, null);
+    if (Array.isArray(origins)) {
+      const idx = origins.findIndex(o => normalize(o && o.name) === normalize('DTF UV Online'));
+      if (idx !== -1) { origins.splice(idx, 1); writeStorage(STORAGE.orderOrigins, origins, { immediate: true }); }
+    }
   }
 
   function getDtfCosts() { return readStorage(STORAGE.dtfCosts, []); }
@@ -11946,7 +11959,10 @@
       if (nextBtn) nextBtn.disabled = navInfo.current >= navInfo.total;
       if (navEl) navEl.hidden = false;
     } else {
-      if (titleEl) titleEl.textContent = 'Registro com vínculos';
+      const hasLinks = blocks.length > 0;
+      if (titleEl) titleEl.textContent = hasLinks ? 'Registro com vínculos' : 'Excluir pedido';
+      const textEl = $('#pw-linked-delete-text');
+      if (textEl) textEl.textContent = hasLinks ? 'Este registro está cadastrado em outras partes do sistema.' : 'Este pedido não está vinculado a outros registros do sistema.';
       if (navEl) navEl.hidden = true;
     }
     modal.classList.add('pw-open');
@@ -19324,6 +19340,7 @@
       syncDtfMovementOptions('Abastecimento');
       migrateClientOriginToOrders();
       migrateFinalizedOrdersToDelivered();
+      migrateDtfUvOriginToNormal();
       cleanupExpiredTrash();
       normalizeExistingArtCodes();
       populatePaymentMethodSelects('', '');

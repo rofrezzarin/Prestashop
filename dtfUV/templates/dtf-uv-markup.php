@@ -526,7 +526,7 @@
               Voltar
             </button>
 
-            <button id="btn-finish-no-pay" class="pw-btn ghost" type="button">
+            <button id="btn-finish-no-pay" class="pw-btn" type="button">
               Finalizar e pagar depois
             </button>
 

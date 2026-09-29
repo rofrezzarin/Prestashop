@@ -2966,7 +2966,6 @@
             }
             refreshAdvanceAvailability();
             updateSummary();
-            resetPaymentState();
           });
         })();
 
@@ -3009,7 +3008,7 @@
           SHIPPING_SERVICE = null;
 
           btnNext3.disabled = true;
-          btnNext3.style.display = "";
+          btnNext3.style.display = "none";
 
           paymentMsg.textContent = "";
 

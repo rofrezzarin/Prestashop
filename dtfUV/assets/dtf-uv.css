@@ -155,22 +155,25 @@
       }
 
       .pw-choice-cards {
-        display: flex;
-        gap: 16px;
-        flex-wrap: wrap;
-        margin-top: 8px;
-        justify-content: center;
+        display: flex !important;
+        gap: 16px !important;
+        flex-wrap: wrap !important;
+        margin-top: 8px !important;
+        justify-content: center !important;
+        writing-mode: horizontal-tb !important;
+        direction: ltr !important;
       }
 
       .pw-source-card {
         position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
         gap: 14px;
         width: 180px !important;
         max-width: 180px !important;
+        min-width: 180px !important;
         flex-shrink: 0 !important;
         flex-grow: 0 !important;
         min-height: 240px;
@@ -180,12 +183,16 @@
         background: #ffffff;
         color: #333;
         cursor: pointer;
-        text-align: center;
+        text-align: center !important;
         box-shadow: 0 2px 8px rgba(11,91,215,.06);
         transition: border-color .2s, box-shadow .2s, background .2s, transform .2s;
-        box-sizing: border-box;
+        box-sizing: border-box !important;
         overflow: hidden;
         user-select: none;
+        writing-mode: horizontal-tb !important;
+        direction: ltr !important;
+        word-break: normal !important;
+        white-space: normal !important;
       }
 
       /* Linha colorida no topo */

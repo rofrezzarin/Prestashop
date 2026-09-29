@@ -155,9 +155,9 @@
       }
 
       .pw-choice-cards {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(2, 200px);
         gap: 20px;
-        flex-wrap: wrap;
         margin-top: 8px;
         justify-content: center;
       }
@@ -169,9 +169,8 @@
         align-items: center;
         justify-content: flex-start;
         gap: 14px;
-        flex: 1 1 140px;
-        width: auto !important;
-        max-width: 200px !important;
+        width: 100%;
+        box-sizing: border-box;
         min-height: 230px;
         padding: 28px 20px 24px;
         border: 2px solid #dce8fb !important;
@@ -766,5 +765,6 @@
       }
 
       @media (max-width: 460px) {
-        .pw-calc .pw-source-card { flex: 1 1 100% !important; max-width: 100% !important; min-height: 160px; }
+        .pw-choice-cards { grid-template-columns: 1fr; }
+        .pw-calc .pw-source-card { min-height: 160px; }
       }

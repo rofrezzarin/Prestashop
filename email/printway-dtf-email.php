@@ -2108,7 +2108,7 @@ function pw_dtf_mp_create_pix() {
 	if ( ! $payment_session ) {
 		wp_send_json_error( array( 'message' => 'Sessão de pagamento inválida.' ) );
 	}
-	$session_data = get_transient( 'pw_dtf_payment_' . $payment_session );
+	$session_data = pw_dtf_get_payment_session( $payment_session );
 	if ( ! $session_data || ! is_array( $session_data ) ) {
 		wp_send_json_error( array( 'message' => 'Sessão de pagamento expirada. Recalcule o pedido.' ) );
 	}

@@ -1,6 +1,6 @@
 <!--
   PRINTWAY - PEDIDOS DE PERSONALIZADOS
-  PW_BUILD_VERSION: 1.32.406
+  PW_BUILD_VERSION: 1.32.407
   Bloco isolado para inserir em um widget HTML do WordPress/Elementor.
   Não contém nem altera cabeçalho, rodapé, body ou estilos globais da página.
 -->
@@ -1161,7 +1161,7 @@
               <small class="pw-field-hint">Recebe a mensagem da aba selecionada ao clicar em Enviar teste.</small>
             </div>
             <div class="pw-field pw-col-1" style="align-self:flex-end">
-              <button class="pw-btn pw-btn-soft" id="pw-wa-test-send" type="button" title="Envia a mensagem da aba ativa para o número de teste">
+              <button class="pw-btn pw-btn-primary" id="pw-wa-test-send" type="button" title="Envia a mensagem da aba ativa para o número de teste">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 Enviar teste
               </button>

@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Pedidos
  * Description: Recebe, armazena e gerencia os pedidos da calculadora DTF UV.
- * Version: 2.4.23
+ * Version: 2.4.24
  * Author: PrintWay
  */
 
@@ -18,17 +18,6 @@ const PW_DTF_CURRENT_USER_ACTION = 'printway_dtf_get_current_user_profile';
 const PW_DTF_NONCE_ACTION = 'printway_dtf_send_order';
 const PW_DTF_MAX_FILE_SIZE = 10485760;
 const PW_DTF_PRINT_WIDTH_CM = 28;
-
-/** Oculta a barra de administração do WordPress para usuários que não são administradores nem colaboradores. */
-add_filter( 'show_admin_bar', function ( $show ) {
-	if ( ! is_user_logged_in() ) {
-		return false;
-	}
-	$user  = wp_get_current_user();
-	$roles = array_map( 'sanitize_key', (array) $user->roles );
-	$allowed = array( 'administrator', 'colaborador', 'collaborator', 'contributor' );
-	return (bool) array_intersect( $allowed, $roles );
-} );
 
 function pw_dtf_disable_calculator_cache() {
 	if ( is_admin() || ! is_page( 'calcular_dtf_uv' ) ) {
@@ -554,41 +543,49 @@ function pw_dtf_render_account_orders() {
 
 		$qr_svg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><rect x="2" y="2" width="8" height="8" rx="1" ry="1"/><rect x="4" y="4" width="4" height="4" fill="#fff"/><rect x="14" y="2" width="8" height="8" rx="1" ry="1"/><rect x="16" y="4" width="4" height="4" fill="#fff"/><rect x="2" y="14" width="8" height="8" rx="1" ry="1"/><rect x="4" y="16" width="4" height="4" fill="#fff"/><rect x="14" y="14" width="2" height="2"/><rect x="18" y="14" width="4" height="2"/><rect x="14" y="18" width="4" height="2"/><rect x="20" y="18" width="2" height="4"/><rect x="14" y="22" width="2" height="2"/></svg>';
 
-		$rows_html .= '<tr class="' . esc_attr( $row_class ) . '" data-dtf-order-id="' . esc_attr( $order->ID ) . '">';
-		$rows_html .= '<td data-title="Pedido" style="font-family:monospace;font-size:12px">' . esc_html( $reference ) . '</td>';
-		$rows_html .= '<td data-title="Data">' . esc_html( pw_dtf_format_order_date( $order ) ) . '</td>';
-		$rows_html .= '<td data-title="Valor" style="font-weight:600">' . wp_kses_post( wc_price( $amount ) ) . '</td>';
-		$rows_html .= '<td data-title="Pagamento">' . esc_html( $payment ) . '</td>';
-		$rows_html .= '<td data-title="Status Pag."><span class="pw-dtf-pay-badge ' . esc_attr( $pay_info['class'] ) . '">' . esc_html( $pay_info['label'] ) . '</span></td>';
-		$rows_html .= '<td data-title="Entrega">' . esc_html( $delivery ? $delivery : '—' ) . '</td>';
-		$rows_html .= '<td data-title="Situação"><span class="pw-dtf-situacao-badge">' . esc_html( $situacao ) . '</span></td>';
-		$rows_html .= '<td data-title="Arte">' . $pdf_html . '</td>';
-		$rows_html .= '<td data-title="Ações" style="white-space:nowrap">';
+		$card_class = 'pw-dtf-order-card' . ( $is_final ? ' pw-dtf-account-finalizado' : '' );
+		$rows_html .= '<div class="' . esc_attr( $card_class ) . '" data-dtf-order-id="' . esc_attr( $order->ID ) . '" data-amount="' . esc_attr( $amount ) . '" data-paid="' . ( $is_paid ? '1' : '0' ) . '">';
+
+		$rows_html .= '<div class="pw-dtf-oc-header">';
+		$rows_html .= '<span class="pw-dtf-oc-ref">' . esc_html( $reference ) . '</span>';
+		$rows_html .= '<div class="pw-dtf-oc-badges">';
+		$rows_html .= '<span class="pw-dtf-situacao-badge">' . esc_html( $situacao ) . '</span>';
+		$rows_html .= '<span class="pw-dtf-pay-badge ' . esc_attr( $pay_info['class'] ) . '">' . esc_html( $pay_info['label'] ) . '</span>';
+		$rows_html .= '</div>';
+		$rows_html .= '</div>';
+
+		$rows_html .= '<div class="pw-dtf-oc-body">';
+		$rows_html .= '<div class="pw-dtf-oc-field"><span class="pw-dtf-oc-label">Data</span><span class="pw-dtf-oc-field-value">' . esc_html( pw_dtf_format_order_date( $order ) ) . '</span></div>';
+		$rows_html .= '<div class="pw-dtf-oc-field"><span class="pw-dtf-oc-label">Valor</span><span class="pw-dtf-oc-amount">' . wp_kses_post( wc_price( $amount ) ) . '</span></div>';
+		$rows_html .= '<div class="pw-dtf-oc-field"><span class="pw-dtf-oc-label">Pagamento</span><span class="pw-dtf-oc-field-value">' . esc_html( $payment ? $payment : '—' ) . '</span></div>';
+		$rows_html .= '<div class="pw-dtf-oc-field"><span class="pw-dtf-oc-label">Entrega</span><span class="pw-dtf-oc-field-value">' . esc_html( $delivery ? $delivery : '—' ) . '</span></div>';
+		if ( $att_id && '—' !== $pdf_html ) {
+			$rows_html .= '<div class="pw-dtf-oc-field"><span class="pw-dtf-oc-label">Arte</span>' . $pdf_html . '</div>';
+		}
+		$rows_html .= '</div>';
+
+		$rows_html .= '<div class="pw-dtf-oc-footer">';
 		if ( $can_pay ) {
-			$rows_html .= '<button class="pw-dtf-qr-btn" data-order-id="' . esc_attr( $order->ID ) . '" data-amount="' . esc_attr( $amount ) . '" onclick="pwDtfOpenQr(this)" style="margin-bottom:4px">' . $qr_svg . ' Pagar</button>';
+			$rows_html .= '<button class="pw-dtf-qr-btn" data-order-id="' . esc_attr( $order->ID ) . '" data-amount="' . esc_attr( $amount ) . '" onclick="pwDtfOpenQr(this)">' . $qr_svg . ' Pagar</button>';
 		}
 		if ( $can_delete ) {
 			$rows_html .= '<button class="pw-dtf-del-btn" data-order-id="' . esc_attr( $order->ID ) . '" data-ref="' . esc_attr( $reference ) . '" onclick="pwDtfDeleteOrder(this)">&#128465; Excluir</button>';
 		}
-		if ( ! $can_pay && ! $can_delete ) {
-			$rows_html .= '—';
-		}
-		$rows_html .= '</td>';
-		$rows_html .= '</tr>';
+		$rows_html .= '</div>';
+
+		$rows_html .= '</div>';
 	}
 
 	echo '<style>
-		.pw-dtf-account-finalizado{opacity:.55;background:#f8fafc}
-		.pw-dtf-account-finalizado td{color:#6b7280}
-		.pw-dtf-pay-badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.02em}
+		.pw-dtf-pay-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.03em}
 		.pw-dtf-pay-badge.paid{background:#dcfce7;color:#166534}
 		.pw-dtf-pay-badge.pending{background:#fef9c3;color:#854d0e}
 		.pw-dtf-pay-badge.waiting{background:#fee2e2;color:#991b1b}
-		.pw-dtf-situacao-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#f1f5f9;color:#334155;font-weight:600}
-		.pw-dtf-qr-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600}
-		.pw-dtf-qr-btn:hover{background:#1d4ed8}
-		.pw-dtf-del-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#fff;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;margin-left:4px}
-		.pw-dtf-del-btn:hover{background:#fef2f2}
+		.pw-dtf-situacao-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;background:#f1f5f9;color:#334155;font-weight:600}
+		.pw-dtf-qr-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;transition:background .15s}
+		.pw-dtf-qr-btn:hover{background:#6d28d9}
+		.pw-dtf-del-btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:#fff;color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;transition:background .15s,border-color .15s}
+		.pw-dtf-del-btn:hover{background:#fef2f2;border-color:#f87171}
 		#pw-dtf-qr-modal{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.65);align-items:center;justify-content:center}
 		#pw-dtf-qr-modal.active{display:flex}
 		#pw-dtf-qr-modal-inner{background:#fff;border-radius:16px;padding:28px 24px;max-width:390px;width:93%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.25)}
@@ -596,42 +593,44 @@ function pw_dtf_render_account_orders() {
 		#pw-dtf-qr-modal img{width:220px;height:220px;margin:10px auto;display:block}
 		#pw-dtf-qr-copy{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:7px;cursor:pointer;font-size:12px;font-family:monospace;word-break:break-all;max-width:100%;margin:6px 0}
 		#pw-dtf-qr-status{margin-top:10px;font-size:13px;color:#555}
-		.pw-dtf-summary-cards{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 18px}
-		.pw-dtf-card{flex:1;min-width:120px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-		.pw-dtf-card-label{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
-		.pw-dtf-card-value{font-size:18px;font-weight:700;color:#111827}
-		.pw-dtf-card.green .pw-dtf-card-value{color:#059669}
-		.pw-dtf-card.yellow .pw-dtf-card-value{color:#d97706}
-		.pw-dtf-card.blue .pw-dtf-card-value{color:#2563eb}
-		.pw-dtf-tfoot-total td{font-weight:700;border-top:2px solid #e5e7eb;background:#f9fafb}
-		.pw-dtf-filter-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+		.pw-dtf-summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin:0 0 22px}
+		.pw-dtf-stat-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+		.pw-dtf-stat-card-label{font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:600}
+		.pw-dtf-stat-card-value{font-size:20px;font-weight:800;color:#111827}
+		.pw-dtf-stat-card.blue .pw-dtf-stat-card-value{color:#2563eb}
+		.pw-dtf-stat-card.green .pw-dtf-stat-card-value{color:#059669}
+		.pw-dtf-stat-card.yellow .pw-dtf-stat-card-value{color:#d97706}
+		.pw-dtf-filter-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+		.pw-dtf-orders-grid{display:grid;gap:16px}
+		.pw-dtf-order-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);transition:box-shadow .15s}
+		.pw-dtf-order-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.1)}
+		.pw-dtf-account-finalizado.pw-dtf-order-card{opacity:.55}
+		.pw-dtf-oc-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9}
+		.pw-dtf-oc-ref{font-family:monospace;font-size:13px;font-weight:700;color:#374151;background:#f8fafc;border:1px solid #e5e7eb;padding:4px 10px;border-radius:6px}
+		.pw-dtf-oc-badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+		.pw-dtf-oc-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px 20px;margin-bottom:16px}
+		.pw-dtf-oc-field{display:flex;flex-direction:column;gap:3px}
+		.pw-dtf-oc-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;font-weight:600}
+		.pw-dtf-oc-field-value{font-size:13px;color:#374151;font-weight:500}
+		.pw-dtf-oc-amount{font-size:17px;font-weight:800;color:#111827}
+		.pw-dtf-oc-footer{display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid #f1f5f9}
+		@media(max-width:480px){.pw-dtf-oc-body{grid-template-columns:1fr 1fr}.pw-dtf-oc-header{flex-direction:column;align-items:flex-start}}
 	</style>';
 
 	echo '<div class="pw-dtf-summary-cards">';
-	echo '<div class="pw-dtf-card blue"><div class="pw-dtf-card-label">Total de pedidos</div><div class="pw-dtf-card-value">' . esc_html( $count_all ) . '</div></div>';
-	echo '<div class="pw-dtf-card green"><div class="pw-dtf-card-label">Total pago</div><div class="pw-dtf-card-value">' . wp_kses_post( wc_price( $total_pago ) ) . '</div></div>';
-	echo '<div class="pw-dtf-card yellow"><div class="pw-dtf-card-label">Pendente</div><div class="pw-dtf-card-value">' . wp_kses_post( wc_price( $total_pendente ) ) . '</div></div>';
-	echo '<div class="pw-dtf-card"><div class="pw-dtf-card-label">Soma geral</div><div class="pw-dtf-card-value">' . wp_kses_post( wc_price( $total_valor ) ) . '</div></div>';
+	echo '<div class="pw-dtf-stat-card blue"><div class="pw-dtf-stat-card-label">Total de pedidos</div><div class="pw-dtf-stat-card-value" id="pw-dtf-stat-count">' . esc_html( $count_all ) . '</div></div>';
+	echo '<div class="pw-dtf-stat-card green"><div class="pw-dtf-stat-card-label">Total pago</div><div class="pw-dtf-stat-card-value" id="pw-dtf-stat-pago">' . wp_kses_post( wc_price( $total_pago ) ) . '</div></div>';
+	echo '<div class="pw-dtf-stat-card yellow"><div class="pw-dtf-stat-card-label">Pendente</div><div class="pw-dtf-stat-card-value" id="pw-dtf-stat-pendente">' . wp_kses_post( wc_price( $total_pendente ) ) . '</div></div>';
+	echo '<div class="pw-dtf-stat-card"><div class="pw-dtf-stat-card-label">Soma geral</div><div class="pw-dtf-stat-card-value" id="pw-dtf-stat-total">' . wp_kses_post( wc_price( $total_valor ) ) . '</div></div>';
 	echo '</div>';
 
 	echo '<div class="pw-dtf-filter-bar">';
 	echo '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input id="pw-dtf-hide-completed" type="checkbox"' . checked( $hide_pref, true, false ) . '> Ocultar Finalizados</label>';
 	echo '</div>';
 
-	echo '<div style="overflow-x:auto">';
-	echo '<table class="woocommerce-orders-table woocommerce-MyAccount-orders shop_table shop_table_responsive my_account_orders account-orders-table pw-dtf-sortable-table">';
-	echo '<thead><tr>';
-	echo '<th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th><th>Status Pag.</th><th>Entrega</th><th>Situação</th><th>Arte</th><th>Ações</th>';
-	echo '</tr></thead><tbody>';
+	echo '<div class="pw-dtf-orders-grid">';
 	echo $rows_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-	echo '</tbody>';
-	echo '<tfoot><tr class="pw-dtf-tfoot-total">';
-	echo '<td colspan="2">Total (' . esc_html( $count_all ) . ' pedidos)</td>';
-	echo '<td>' . wp_kses_post( wc_price( $total_valor ) ) . '</td>';
-	echo '<td colspan="2"><span style="color:#059669;font-weight:700">Pago: ' . wp_kses_post( wc_price( $total_pago ) ) . '</span></td>';
-	echo '<td colspan="4"><span style="color:#d97706;font-weight:700">Pendente: ' . wp_kses_post( wc_price( $total_pendente ) ) . '</span></td>';
-	echo '</tr></tfoot>';
-	echo '</table></div>';
+	echo '</div>';
 
 	echo '<div id="pw-dtf-qr-modal"><div id="pw-dtf-qr-modal-inner">';
 	echo '<button id="pw-dtf-qr-modal-close" onclick="pwDtfCloseQr()" aria-label="Fechar">&times;</button>';
@@ -708,6 +707,21 @@ function pwDtfCopyPix(el){
   if(!t){return;}
   navigator.clipboard&&navigator.clipboard.writeText(t).then(function(){el.style.background="#dcfce7";setTimeout(function(){el.style.background="";},1500);});
 }
+function pwDtfFmtBrl(v){var f=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});return f.format(v);}
+function pwDtfUpdateTotals(){
+  var cards=document.querySelectorAll(".pw-dtf-order-card");
+  var count=0,valor=0,pago=0,pendente=0;
+  cards.forEach(function(c){
+    count++;
+    var amt=parseFloat(c.dataset.amount)||0;
+    valor+=amt;
+    if(c.dataset.paid==="1"){pago+=amt;}else{pendente+=amt;}
+  });
+  var ec=document.getElementById("pw-dtf-stat-count");if(ec)ec.textContent=count;
+  var ep=document.getElementById("pw-dtf-stat-pago");if(ep)ep.textContent=pwDtfFmtBrl(pago);
+  var en=document.getElementById("pw-dtf-stat-pendente");if(en)en.textContent=pwDtfFmtBrl(pendente);
+  var et=document.getElementById("pw-dtf-stat-total");if(et)et.textContent=pwDtfFmtBrl(valor);
+}
 function pwDtfDeleteOrder(btn){
   var orderId=btn.dataset.orderId,ref=btn.dataset.ref;
   if(!confirm("Tem certeza que deseja excluir o pedido "+ref+"?\nEssa ação não pode ser desfeita.")){return;}
@@ -720,7 +734,8 @@ function pwDtfDeleteOrder(btn){
   .then(function(r){return r.json();})
   .then(function(json){
     if(json.success){
-      var row=btn.closest("tr");if(row){row.remove();}
+      var card=btn.closest(".pw-dtf-order-card");if(card){card.remove();}
+      pwDtfUpdateTotals();
     } else {
       btn.disabled=false;btn.textContent="Excluir";
       alert((json.data&&json.data.message)||"Não foi possível excluir o pedido.");
@@ -730,8 +745,7 @@ function pwDtfDeleteOrder(btn){
 
 	echo '<script>' . $js . '</script>';
 
-	echo '<script>(function(){var toggle=document.getElementById("pw-dtf-hide-completed");if(!toggle){return;}function apply(){document.querySelectorAll(".pw-dtf-account-finalizado").forEach(function(row){row.style.display=toggle.checked?"none":"";});}toggle.addEventListener("change",function(){apply();var form=new URLSearchParams();form.append("action","printway_dtf_save_completed_visibility");form.append("nonce",window.printway_dtf_nonce||"");form.append("hide",toggle.checked?"1":"0");fetch((window.PW_SERVER_DATA&&window.PW_SERVER_DATA.ajax_url)||"/wp-admin/admin-ajax.php",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()});});apply();})();</script>';
-	pw_dtf_render_sortable_table_script();
+	echo '<script>(function(){var toggle=document.getElementById("pw-dtf-hide-completed");if(!toggle){return;}function apply(){document.querySelectorAll(".pw-dtf-account-finalizado").forEach(function(card){card.style.display=toggle.checked?"none":"";});}toggle.addEventListener("change",function(){apply();var form=new URLSearchParams();form.append("action","printway_dtf_save_completed_visibility");form.append("nonce",window.printway_dtf_nonce||"");form.append("hide",toggle.checked?"1":"0");fetch((window.PW_SERVER_DATA&&window.PW_SERVER_DATA.ajax_url)||"/wp-admin/admin-ajax.php",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()});});apply();})();</script>';
 }
 
 /**

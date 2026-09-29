@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.406
+// PW_BUILD_VERSION: 1.32.407
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -16851,9 +16851,9 @@
       const res = await ajaxPost({ action: 'pw_personalizados_whatsapp_settings_get' });
       const s = (res.data) || {};
       const officialInput = $('#pw-wa-official-number');
-      if (officialInput) officialInput.value = s.official_number || '';
+      if (officialInput) officialInput.value = formatPhone(s.official_number || '');
       const testInput = $('#pw-wa-test-number');
-      if (testInput) testInput.value = s.test_number || '';
+      if (testInput) testInput.value = formatPhone(s.test_number || '');
       const statuses = Array.isArray(s.notify_statuses) ? s.notify_statuses : [];
       $$('.pw-wa-status-check').forEach(chk => { chk.checked = statuses.includes(chk.value); });
       const templates = (s.message_templates && typeof s.message_templates === 'object') ? s.message_templates : {};
@@ -16865,7 +16865,11 @@
   }
 
   const waOfficialInput = $('#pw-wa-official-number');
-  if (waOfficialInput) waOfficialInput.addEventListener('input', updateWhatsAppPreview);
+  if (waOfficialInput) {
+    waOfficialInput.addEventListener('input', e => { e.target.value = formatPhone(e.target.value); updateWhatsAppPreview(); });
+  }
+  const waTestInputEl = $('#pw-wa-test-number');
+  if (waTestInputEl) waTestInputEl.addEventListener('input', e => { e.target.value = formatPhone(e.target.value); });
 
   // Troca de aba de situação
   document.addEventListener('click', e => {

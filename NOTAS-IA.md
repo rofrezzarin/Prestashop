@@ -65,19 +65,18 @@ Versão, funções novas, correções de lógica — tudo nos dois arquivos.
 
 ---
 
-### REGRA 3 — ZIP de entrega: APENAS arquivos alterados, pastas corretas, sem prefixo `printway/`
+### REGRA 3 — ZIP de entrega: caminho completo `wp-content/plugins/printway/`
 
-#### Regra principal — SEMPRE enviar só os arquivos alterados
+#### Regra principal — SEMPRE usar diretório temporário com caminho completo
 
-**NUNCA enviar o plugin completo.** O ZIP deve conter **exclusivamente os arquivos que
-foram modificados naquela sessão**, com os caminhos internos corretos.
+O usuário **sempre extrai o ZIP na raiz do site WordPress** (ex: `/public_html/`).
+Portanto, todos os ZIPs devem ter o caminho completo `wp-content/plugins/printway/`
+como prefixo interno.
 
-Enviar arquivos que não mudaram é desperdício e pode sobrescrever versões mais novas
-que o usuário tenha instalado por outro meio.
+**NUNCA enviar o plugin completo.** Só os arquivos alterados naquela sessão.
 
 #### Estrutura real do plugin no servidor
 
-O plugin fica em:
 ```
 /domains/printway.com.br/public_html/wp-content/plugins/printway/
 ```
@@ -92,7 +91,7 @@ printway/
 ├── dtfUV/
 │   ├── assets/         ← dtf-uv.css, dtf-uv.js
 │   ├── templates/      ← dtf-uv-markup.php
-│   └── printway-dtf-orders.php   ← pedidos da calculadora (antes era email/)
+│   └── printway-dtf-orders.php   ← (antes era email/printway-dtf-email.php)
 ├── editor-de-imagens/
 ├── mercadolivre/
 ├── pix-qrcode/
@@ -103,66 +102,55 @@ printway/
 
 > ⚠️ A pasta `email/` foi removida. O arquivo foi movido para `dtfUV/printway-dtf-orders.php`.
 
-#### Como criar o ZIP corretamente
+#### Como criar o ZIP corretamente (único método aceito)
 
-O usuário conecta via FTP **direto na pasta `printway/`** como raiz.
-O ZIP deve conter os arquivos **com os caminhos relativos a `printway/`**, **SEM** incluir
-`printway/` como prefixo na raiz do ZIP.
+Usar diretório temporário para montar a estrutura completa, depois zipar:
 
-**Comando padrão (a partir de `/home/user/Prestashop`):**
 ```bash
-cd /home/user/Prestashop
-zip entrega.zip arquivo1/caminho.php arquivo2/caminho.js ...
+BUILD=/tmp/claude-0/build-entrega
+rm -rf "$BUILD"
+BASE="$BUILD/wp-content/plugins/printway"
+
+# Criar as pastas necessárias
+mkdir -p "$BASE/pedidos/assets" "$BASE/pedidos/templates"
+
+# Copiar só os arquivos alterados
+cp /home/user/Prestashop/pedidos/assets/pedidos.js "$BASE/pedidos/assets/"
+cp /home/user/Prestashop/pedidos/assets/pedidos.min.js "$BASE/pedidos/assets/"
+cp /home/user/Prestashop/pedidos/assets/pedidos.css "$BASE/pedidos/assets/"
+cp /home/user/Prestashop/pedidos/templates/pedidos-app.php "$BASE/pedidos/templates/"
+cp /home/user/Prestashop/pedidos/printway-pedidos.php "$BASE/pedidos/"
+
+# Zipar a partir do diretório temporário
+cd "$BUILD" && zip -r /tmp/claude-0/.../entrega.zip wp-content/
 ```
 
-**Exemplo — alterando só arquivos do módulo `pedidos` (REGRA 1):**
-```bash
-zip entrega.zip \
-  pedidos/assets/pedidos.js \
-  pedidos/assets/pedidos.min.js \
-  pedidos/assets/pedidos.css \
-  pedidos/templates/pedidos-app.php \
-  pedidos/printway-pedidos.php
+O ZIP resultante terá internamente:
 ```
-
-**Exemplo — alterando um arquivo do módulo `dtfUV`:**
-```bash
-zip entrega.zip dtfUV/printway-dtf-orders.php
-```
-
-O ZIP resultante terá internamente apenas o que mudou:
-```
-pedidos/assets/pedidos.js          ✓
-pedidos/assets/pedidos.min.js      ✓
+wp-content/plugins/printway/pedidos/assets/pedidos.js    ✓
+wp-content/plugins/printway/pedidos/assets/pedidos.min.js ✓
 ...
 ```
 
-Ao extrair em `plugins/printway/`, cada arquivo vai para o lugar certo e nada mais
-é sobrescrito.
+Ao extrair na raiz do site, cada arquivo vai exatamente para o lugar certo.
 
 #### ERROS HISTÓRICOS — nunca repetir
 
-**Erro 1 — flag `-j` (junk paths):** remove as pastas do ZIP.
+**Erro 1 — `cd /home/user/Prestashop && zip entrega.zip pedidos/...`:**
+ZIP contém `pedidos/assets/pedidos.js` sem prefixo. Ao extrair na raiz do site,
+arquivo vai para `/public_html/pedidos/assets/pedidos.js` — lugar errado.
+
+**Erro 2 — flag `-j` (junk paths):** remove as pastas do ZIP.
 ```bash
 zip -j entrega.zip dtfUV/templates/dtf-uv-markup.php  # ERRADO!
-# ZIP contém: dtf-uv-markup.php (sem pasta)
-# Vai para: plugins/printway/dtf-uv-markup.php  ✗
+# Arquivo vai para: plugins/printway/dtf-uv-markup.php  ✗
 ```
 
-**Erro 2 — ZIP completo do plugin:** nunca zip da pasta inteira.
-```bash
-zip -r entrega.zip .  # ERRADO! Manda tudo, sobrescreve o que não mudou
-```
-
-**Erro 3 — prefixo errado:** ZIP criado a partir da pasta pai resulta em
-`Prestashop/pedidos/...` em vez de `pedidos/...` — extrai no lugar errado.
-
-**Correto:** sempre `cd /home/user/Prestashop` antes de zipar, sem `-j`, sem `-r`,
-listando só os arquivos alterados.
+**Erro 3 — ZIP completo do plugin:** nunca zip da pasta inteira — sobrescreve o que não mudou.
 
 #### Instalação
 
-FTP ou cPanel File Manager → extrair em `wp-content/plugins/printway/`
+Extrair o ZIP **na raiz do site** (diretório onde está a pasta `wp-content/`).
 
 **NUNCA** usar o instalador de plugins do WordPress: ele cria `printway-X.X.X/`
 separado em vez de sobrescrever `printway/`, corrompendo a instalação.
@@ -269,6 +257,50 @@ pedidos/
 > **Instruções:** ao final de cada sessão de alterações, adicione uma entrada aqui
 > com data, versão entregue, o que foi feito e qualquer decisão técnica relevante.
 > Use o formato abaixo.
+
+---
+
+### 2026-09-29 — v1.32.409 / dtfUV v1.33.1 / shopee backoff
+
+**O que foi feito:**
+- **editor-de-imagens v1.0.457**: 4 arquivos atualizados pelo usuário via 7z
+  (`assets/css/editor.css`, `assets/js/editor.js`, `dtf-uv-editor.php`, `views/editor.php`).
+- **Shopee token spam corrigido**: `pw_shopee_get_valid_access_token()` agora usa
+  transient `pw_shopee_cred_fail` para bloquear retentativas por 1h após qualquer
+  erro 4xx (403 Invalid partner_id, etc.). Transient limpo em `pw_shopee_store_tokens()`
+  ao reconectar com sucesso.
+- **Notificação "1x —" corrigida**: `pw_personalizados_build_order_summary()` lia
+  `$item['description']` mas importação DTF UV usa `$item['product']`. Corrigido para
+  `$item['description'] ?? $item['product'] ?? ''`.
+- **Pedido DTF UV não aparecia na lista**: `checkOrderNotifications()` piscava o botão ↻
+  mas não atualizava. Adicionado `refreshOrdersReport().catch(() => {})` ao detectar
+  novo pedido — lista atualiza automaticamente.
+- **Filtro de datas restaurado**: botão de filtro por período estava sumindo.
+- **dtfUV área do cliente**: aba "Pedidos DTF UV" aparece primeiro; aba "Pedidos do site"
+  oculta se usuário não tem pedidos WooCommerce; botão Excluir (não pago + status abaixo
+  de "Em produção"); botão Pagar (apenas `pending_mp` — QR Code MP pendente).
+- **REGRA 3 corrigida**: ZIPs agora SEMPRE com prefixo `wp-content/plugins/printway/`
+  usando diretório temporário. Usuário extrai na raiz do site.
+- **printway.php incluído no ZIP dtfUV**: loader apontava para `email/printway-dtf-email.php`
+  (caminho antigo). Incluir `printway.php` no ZIP garante que o loader use o novo
+  `dtfUV/printway-dtf-orders.php`.
+
+**Versão entregue:**
+- `pedidos/`: v1.32.409
+- `dtfUV/`: v1.33.1 (ZIP COMPLETO com `wp-content/` prefix)
+
+**Arquivos alterados:**
+- `pedidos/printway-pedidos.php` (v1.32.409)
+- `pedidos/assets/pedidos.js` + `pedidos.min.js` (v1.32.409)
+- `pedidos/assets/pedidos.css` (v1.32.409)
+- `pedidos/templates/pedidos-app.php` (v1.32.409)
+- `dtfUV/printway-dtf-orders.php`
+- `dtfUV/assets/dtf-uv.js`
+- `dtfUV/templates/dtf-uv-markup.php`
+- `shopee/printway-shopee.php`
+- `editor-de-imagens/` (4 arquivos)
+- `printway.php` (caminho do módulo dtfUV)
+- `NOTAS-IA.md` (REGRA 3 corrigida)
 
 ---
 

@@ -49,22 +49,80 @@ Versão, funções novas, correções de lógica — tudo nos dois arquivos.
 
 ---
 
-### REGRA 3 — ZIP de entrega: formato FTP, sem prefixo `printway/`
+### REGRA 3 — ZIP de entrega: formato FTP, com pastas internas, sem prefixo `printway/`
 
-O ZIP contém **apenas os arquivos alterados**, com caminhos relativos à pasta do plugin,
-**SEM** o prefixo `printway/` na raiz do ZIP.
+#### Estrutura real do plugin no servidor
 
-**Estrutura correta dentro do ZIP:**
+O plugin fica em:
 ```
-pedidos/assets/pedidos.js
-pedidos/assets/pedidos.min.js
-pedidos/assets/pedidos.css
-pedidos/templates/pedidos-app.php
-pedidos/printway-pedidos.php
-(demais módulos: dtfUV/, editor-de-imagens/, etc., se alterados)
+/domains/printway.com.br/public_html/wp-content/plugins/printway/
 ```
 
-**Instalação:** FTP ou cPanel File Manager → extrair em `wp-content/plugins/printway/`
+Dentro dessa pasta existem os módulos (subpastas):
+```
+printway/
+├── pedidos/
+│   ├── assets/         ← pedidos.js, pedidos.min.js, pedidos.css
+│   ├── templates/      ← pedidos-app.php
+│   └── printway-pedidos.php
+├── dtfUV/
+│   ├── assets/         ← dtf-uv.css, dtf-uv.js
+│   └── templates/      ← dtf-uv-markup.php
+├── editor-de-imagens/
+├── email/
+├── home/
+├── mercadolivre/
+├── pedidos/
+├── pix-qrcode/
+├── shopee/
+└── (outros módulos...)
+```
+
+#### Como criar o ZIP corretamente
+
+O usuário conecta via FTP **direto na pasta `printway/`** como raiz.
+O ZIP deve conter os arquivos **com os caminhos relativos a `printway/`**, **SEM** incluir
+`printway/` como prefixo na raiz do ZIP.
+
+**Exemplo — alterando arquivos do módulo `dtfUV`:**
+```bash
+# Dentro do repositório (raiz = /home/user/Prestashop)
+zip entrega.zip dtfUV/templates/dtf-uv-markup.php dtfUV/assets/dtf-uv.css
+```
+
+O ZIP resultante terá internamente:
+```
+dtfUV/templates/dtf-uv-markup.php
+dtfUV/assets/dtf-uv.css
+```
+
+Ao extrair em `plugins/printway/`, os arquivos vão para os lugares certos:
+```
+plugins/printway/dtfUV/templates/dtf-uv-markup.php  ✓
+plugins/printway/dtfUV/assets/dtf-uv.css            ✓
+```
+
+**Exemplo — alterando arquivos do módulo `pedidos`:**
+```bash
+zip entrega.zip pedidos/assets/pedidos.js pedidos/assets/pedidos.min.js \
+  pedidos/assets/pedidos.css pedidos/templates/pedidos-app.php \
+  pedidos/printway-pedidos.php
+```
+
+#### ERRO HISTÓRICO — nunca repetir
+
+Em sessões anteriores foram gerados ZIPs com a flag `-j` (junk paths), que **remove
+os diretórios** e deixa só o nome do arquivo:
+```bash
+zip -j entrega.zip dtfUV/templates/dtf-uv-markup.php  # ERRADO!
+# Gera ZIP com: dtf-uv-markup.php (sem pasta)
+# Arquivo vai parar em: plugins/printway/dtf-uv-markup.php  ✗ (raiz errada!)
+```
+**NUNCA usar `-j`**. Sempre usar o caminho relativo completo sem `-j`.
+
+#### Instalação
+
+FTP ou cPanel File Manager → extrair em `wp-content/plugins/printway/`
 
 **NUNCA** usar o instalador de plugins do WordPress: ele cria `printway-X.X.X/`
 separado em vez de sobrescrever `printway/`, corrompendo a instalação.
@@ -204,6 +262,36 @@ pedidos/
   container, não ao viewport. Solução: mover para `document.body`.
 - `pedidos.min.js` não é minificado — é cópia funcional de `pedidos.js`.
   Manter os dois arquivos sempre sincronizados.
+
+---
+
+### 2026-09-29 — dtfUV: cards Step 2 corrigidos
+
+**O que foi feito:**
+- Cards do Step 2 da calculadora DTF UV (`dtfUV/templates/dtf-uv-markup.php`) convertidos
+  de `<button>` para `<div role="button" tabindex="0">` para escapar do CSS do tema WordPress
+  que força `button { width: 100% !important }`.
+- Adicionados inline styles diretamente nos elementos (`width:180px;max-width:180px;
+  flex-shrink:0;flex-grow:0`) como camada à prova de falha — inline style não pode ser
+  sobrescrito por CSS externo.
+- Adicionado bloco `<style>` no PHP com `!important` como segunda camada de proteção.
+- CSS atualizado em `dtfUV/assets/dtf-uv.css` com `!important` nas regras de largura.
+- Ícone de calculadora no card "Calculadora de medidas"; ícone de PDF no "Já tenho o PDF".
+- Responsivo: ≤460px os cards empilham em 100% da largura.
+
+**Decisões técnicas:**
+- O tema PrintWay aplica `button { width: 100% !important; background: brown; color: white }`
+  globalmente. Seletor ID `#choose-pdf { width: 180px !important }` vencia na teoria
+  (ID > element), mas a solução definitiva foi trocar para `<div>` — temas nunca estilizam
+  divs genéricos dessa forma.
+- Inline styles nos divs são a camada final: nenhuma regra de stylesheet externa sobrescreve
+  um inline style (só outro inline style com `!important`, que nenhum tema aplica em IDs).
+- Sessões anteriores quebraram porque os ZIPs foram gerados com `-j` (junk paths),
+  jogando os arquivos na raiz do plugin em vez das subpastas corretas. **Ver REGRA 3.**
+
+**Arquivos alterados:**
+- `dtfUV/templates/dtf-uv-markup.php`
+- `dtfUV/assets/dtf-uv.css`
 
 ---
 

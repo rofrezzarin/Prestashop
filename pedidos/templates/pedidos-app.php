@@ -1,6 +1,6 @@
 <!--
   PRINTWAY - PEDIDOS DE PERSONALIZADOS
-  PW_BUILD_VERSION: 1.32.415
+  PW_BUILD_VERSION: 1.32.416
   Bloco isolado para inserir em um widget HTML do WordPress/Elementor.
   Não contém nem altera cabeçalho, rodapé, body ou estilos globais da página.
 -->
@@ -1647,7 +1647,7 @@
     <div class="pw-modal-panel pw-linked-delete-panel" role="alertdialog" aria-modal="true" aria-labelledby="pw-linked-delete-title" aria-describedby="pw-linked-delete-text">
       <div class="pw-modal-header"><div><h3 id="pw-linked-delete-title">Registro com vínculos</h3><p id="pw-linked-delete-text">Este registro está cadastrado em outras partes do sistema.</p></div></div>
       <div class="pw-modal-body"><div class="pw-linked-delete-list" id="pw-linked-delete-list"></div><div class="pw-linked-delete-payments" id="pw-linked-delete-payments" hidden></div><div class="pw-linked-delete-cascade" id="pw-linked-delete-cascade" hidden></div><div class="pw-linked-delete-help" id="pw-linked-delete-help" hidden></div></div>
-      <div class="pw-modal-footer pw-linked-delete-actions"><button class="pw-btn pw-btn-soft" id="pw-linked-delete-cancel" type="button">Cancelar</button><button class="pw-btn pw-btn-danger" id="pw-linked-delete-confirm" type="button">EXCLUÍR</button></div>
+      <div class="pw-modal-footer pw-linked-delete-actions"><button class="pw-btn pw-btn-soft" id="pw-linked-delete-cancel" type="button">Cancelar</button><span class="pw-linked-delete-nav" id="pw-linked-delete-nav" hidden><button class="pw-btn pw-btn-soft pw-btn-icon" id="pw-linked-delete-prev" type="button" title="Pedido anterior">◀</button><span id="pw-linked-delete-counter"></span><button class="pw-btn pw-btn-soft pw-btn-icon" id="pw-linked-delete-next" type="button" title="Pular para o próximo">▶</button></span><button class="pw-btn pw-btn-danger" id="pw-linked-delete-confirm" type="button">EXCLUÍR</button></div>
     </div>
   </div>
 

@@ -1,4 +1,4 @@
-// PW_BUILD_VERSION: 1.32.415
+// PW_BUILD_VERSION: 1.32.416
 /**
  * =============================================================================
  * PRINTWAY — PEDIDOS DE PERSONALIZADOS  |  GUIA DE MANUTENÇÃO PARA IA / DEV
@@ -536,7 +536,8 @@
     const resolvedName = legacyNames[String(name || '').trim()] || name;
     const words = String(resolvedName || '').trim().split(/\s+/).filter(Boolean);
     const fallbackCode = (words.length > 1 ? words.map(word => word[0]).join('') : String(resolvedName || 'NOV').slice(0, 3)).replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || 'NOV';
-    const custom = getSettings().paymentMethodStyles[String(name || '')] || {};
+    const isLegacy = !!legacyNames[String(name || '').trim()];
+    const custom = isLegacy ? {} : (getSettings().paymentMethodStyles[String(name || '')] || {});
     return { name: String(name || ''), code: String(custom.code || fallbackCode).replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || fallbackCode, color: /^#[0-9a-f]{6}$/i.test(custom.color || '') ? custom.color : colors[index % colors.length] };
   }
   function paymentMethodsForOrder(order) {
@@ -5221,7 +5222,8 @@
     const art = entry.art;
     const product = item.description || item.code || 'Produto';
     const name = art.name || art.code || 'Anexo';
-    $('#pw-order-art-preview-detail').textContent = product + ' — ' + name;
+    const clientLabel = order.client && order.client.name ? order.client.name + ' · ' : '';
+    $('#pw-order-art-preview-detail').textContent = clientLabel + product + ' — ' + name;
     renderOrderArtPreviewStatus(art);
     const alphaNotice = $('#pw-order-art-preview-alpha-notice');
     if (alphaNotice) alphaNotice.hidden = true;
@@ -7320,10 +7322,12 @@
 
   function resolveLinkedDeletion(decision) {
     const modal = $('#pw-linked-delete-modal');
-    const cascadeClientIds = decision
+    const isNav = decision === 'prev' || decision === 'next';
+    const confirmed = decision === true;
+    const cascadeClientIds = confirmed
       ? $$('#pw-linked-delete-cascade [data-cascade-client]:checked').map(input => input.dataset.cascadeClient)
       : [];
-    const paymentsToDelete = decision
+    const paymentsToDelete = confirmed
       ? $$('#pw-linked-delete-payments [data-payment-del]:checked').map(input => ({
           orderNumber: String(input.dataset.paymentOrder),
           index: Number(input.dataset.paymentIndex)
@@ -7332,7 +7336,7 @@
     if (modal) { modal.classList.remove('pw-open'); modal.setAttribute('aria-hidden', 'true'); }
     const resolver = linkedDeleteResolver;
     linkedDeleteResolver = null;
-    if (resolver) resolver({ confirmed: decision, cascadeClientIds, paymentsToDelete });
+    if (resolver) resolver({ confirmed, nav: isNav ? decision : null, cascadeClientIds, paymentsToDelete });
   }
 
   function saveAndClosePendingModal() {
@@ -11803,7 +11807,7 @@
     return Array.from(seen.values());
   }
 
-  function confirmLinkedDeletion(kind, records) {
+  function confirmLinkedDeletion(kind, records, navInfo) {
     const blocks = records.map(record => ({ record, topics: linkedDeletionTopics(kind, record) })).filter(item => item.topics.length);
     const cascadeClients = kind === 'order' ? orderCascadeClientOptions(records) : [];
     if (!blocks.length && kind !== 'order') return Promise.resolve(null);
@@ -11914,6 +11918,23 @@
     updateHelp();
     modal.addEventListener('change', updateHelp);
 
+    // Navigation for one-by-one order deletion
+    const titleEl = $('#pw-linked-delete-title');
+    const navEl = $('#pw-linked-delete-nav');
+    const counterEl = $('#pw-linked-delete-counter');
+    const prevBtn = $('#pw-linked-delete-prev');
+    const nextBtn = $('#pw-linked-delete-next');
+    if (navInfo && navInfo.total > 1) {
+      const orderNum = records[0] && records[0].orderNumber ? ' · Pedido #' + records[0].orderNumber : '';
+      if (titleEl) titleEl.textContent = navInfo.current + ' de ' + navInfo.total + orderNum;
+      if (counterEl) counterEl.textContent = navInfo.current + ' / ' + navInfo.total;
+      if (prevBtn) prevBtn.disabled = navInfo.current <= 1;
+      if (nextBtn) nextBtn.disabled = navInfo.current >= navInfo.total;
+      if (navEl) navEl.hidden = false;
+    } else {
+      if (titleEl) titleEl.textContent = 'Registro com vínculos';
+      if (navEl) navEl.hidden = true;
+    }
     modal.classList.add('pw-open');
     modal.setAttribute('aria-hidden', 'false');
     window.setTimeout(() => $('#pw-linked-delete-confirm').focus(), 30);
@@ -11930,21 +11951,47 @@
     const ids = bulkSelections[kind].slice();
     if (!ids.length) return;
     const selected = recordsForKind(kind).filter(item => ids.includes(String(item.id))).map(item => item.record);
+    if (kind === 'order') {
+      let i = 0;
+      let totalDeleted = 0;
+      const allCascadeClientIds = [];
+      while (i < selected.length) {
+        const singleOrder = selected[i];
+        const navInfo = selected.length > 1 ? { current: i + 1, total: selected.length } : null;
+        const decision = await confirmLinkedDeletion('order', [singleOrder], navInfo);
+        if (!decision || (!decision.confirmed && !decision.nav)) break;
+        if (decision.nav === 'prev') { i = Math.max(0, i - 1); continue; }
+        if (decision.nav === 'next') { i++; continue; }
+        if (decision.confirmed) {
+          if ((decision.paymentsToDelete || []).length) {
+            const paymentsMap = {};
+            decision.paymentsToDelete.forEach(p => {
+              if (!paymentsMap[p.orderNumber]) paymentsMap[p.orderNumber] = new Set();
+              paymentsMap[p.orderNumber].add(p.index);
+            });
+            SERVER_STORAGE[STORAGE.orders] = getOrders().map(order => {
+              const set = paymentsMap[String(order.orderNumber)];
+              return set && set.size ? { ...order, payments: (order.payments || []).filter((_, idx) => !set.has(idx)) } : order;
+            });
+          }
+          const ok = await deleteRecord('order', String(singleOrder.id), false, true);
+          if (ok) totalDeleted++;
+          if (decision.cascadeClientIds && decision.cascadeClientIds.length) allCascadeClientIds.push(...decision.cascadeClientIds);
+        }
+        i++;
+      }
+      if (allCascadeClientIds.length) await Promise.all(allCascadeClientIds.map(id => deleteRecord('client', id, false, true)));
+      bulkSelections['order'] = [];
+      renderOrdersConsultation();
+      if (allCascadeClientIds.length) renderClientsConsultation();
+      renderTrash();
+      showMessage(totalDeleted + ' registro(s) movido(s) para a Lixeira' + (allCascadeClientIds.length ? ' (' + allCascadeClientIds.length + ' cliente(s) junto)' : '') + '.', totalDeleted ? 'success' : 'error');
+      notifyLinkedDeletion(totalDeleted > 0);
+      return;
+    }
     const linkedDecision = await confirmLinkedDeletion(kind, selected);
     if (linkedDecision && !linkedDecision.confirmed) return;
     if (linkedDecision === null && !confirm('Mover os ' + ids.length + ' registro(s) selecionado(s) para a Lixeira?')) return;
-    // Strip selected payments from orders before moving to trash
-    if (kind === 'order' && linkedDecision && (linkedDecision.paymentsToDelete || []).length) {
-      const paymentsMap = {};
-      linkedDecision.paymentsToDelete.forEach(p => {
-        if (!paymentsMap[p.orderNumber]) paymentsMap[p.orderNumber] = new Set();
-        paymentsMap[p.orderNumber].add(p.index);
-      });
-      SERVER_STORAGE[STORAGE.orders] = getOrders().map(order => {
-        const set = paymentsMap[String(order.orderNumber)];
-        return set && set.size ? { ...order, payments: (order.payments || []).filter((_, i) => !set.has(i)) } : order;
-      });
-    }
     let deleted = 0;
     const results = await Promise.all(ids.map(id => deleteRecord(kind, id, false, true)));
     deleted = results.filter(Boolean).length;
@@ -11953,7 +12000,6 @@
     if (cascadeClientIds && cascadeClientIds.length) {
       await Promise.all(cascadeClientIds.map(id => deleteRecord('client', id, false, true)));
     }
-    if (kind === 'order' || cascadeClientIds.length) renderOrdersConsultation();
     if (kind === 'client' || cascadeClientIds.length) renderClientsConsultation();
     if (kind === 'product') renderProductsConsultation();
     if (!['order', 'client', 'product'].includes(kind)) renderRegistryConsultation(kind);
@@ -16059,6 +16105,8 @@
   $('#pw-unsaved-cancel').addEventListener('click', closeUnsavedChoice);
   $('#pw-linked-delete-cancel').addEventListener('click', () => resolveLinkedDeletion(false));
   $('#pw-linked-delete-confirm').addEventListener('click', () => resolveLinkedDeletion(true));
+  $('#pw-linked-delete-prev').addEventListener('click', () => resolveLinkedDeletion('prev'));
+  $('#pw-linked-delete-next').addEventListener('click', () => resolveLinkedDeletion('next'));
   $$('.pw-modal').forEach(modal => {
     let backdropPressStarted = false;
     modal.addEventListener('pointerdown', event => {

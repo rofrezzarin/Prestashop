@@ -2327,10 +2327,12 @@
           }
 
           /* Tipo de cliente — oculta o campo para não-admins e define o valor */
+          var _resolvedClientType = currentUser.client_type ||
+            (/revenda|revendedor/i.test(currentUser.role_slug || '') ? 'revenda' : 'direto');
           if (!currentUser.is_admin) {
             var tipoEl = document.getElementById("pw-tipo-step");
             if (tipoEl && tipoEl.parentElement) tipoEl.parentElement.style.display = "none";
-            if (tipoEl && currentUser.client_type) tipoEl.value = currentUser.client_type;
+            if (tipoEl) tipoEl.value = _resolvedClientType;
           }
         }
 
@@ -2433,7 +2435,7 @@
         var clientTypeDisplay = document.getElementById("pw-client-type-display");
         var clientTypeLabel   = document.getElementById("pw-client-type-label");
         if (clientTypeDisplay && clientTypeLabel && currentUser) {
-          clientTypeLabel.textContent = currentUser.client_type === "revenda" ? "Revendedor" : "Cliente direto";
+          clientTypeLabel.textContent = _resolvedClientType === "revenda" ? "Revendedor" : "Cliente direto";
           clientTypeDisplay.style.display = "block";
         }
 

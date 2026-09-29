@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Envio de pedidos
  * Description: Recebe os pedidos da calculadora DTF UV e envia os dados e anexos pelo wp_mail().
- * Version: 2.4.20
+ * Version: 2.4.21
  * Author: PrintWay
  */
 
@@ -452,30 +452,149 @@ function pw_dtf_render_account_orders() {
 
 	$hide_completed = '1' === get_user_meta( get_current_user_id(), '_pw_dtf_hide_completed_orders', true );
 	echo '<p><label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input id="pw-dtf-hide-completed" type="checkbox"' . checked( $hide_completed, true, false ) . '> Ocultar concluídos</label></p>';
-	echo '<style>.pw-dtf-account-completed{opacity:.58;background:#f6f8fa}.pw-dtf-account-completed td{color:#667085}</style><div style="overflow-x:auto">';
+	$ajax_url = admin_url( 'admin-ajax.php' );
+	$nonce    = wp_create_nonce( PW_DTF_NONCE_ACTION );
+
+	echo '<style>
+		.pw-dtf-account-completed{opacity:.58;background:#f6f8fa}
+		.pw-dtf-account-completed td{color:#667085}
+		.pw-dtf-pay-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600}
+		.pw-dtf-pay-badge.paid{background:#dcfce7;color:#166534}
+		.pw-dtf-pay-badge.pending{background:#fef9c3;color:#854d0e}
+		.pw-dtf-pay-badge.waiting{background:#fee2e2;color:#991b1b}
+		.pw-dtf-qr-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;margin-top:4px}
+		.pw-dtf-qr-btn:hover{background:#1d4ed8}
+		#pw-dtf-qr-modal{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);align-items:center;justify-content:center}
+		#pw-dtf-qr-modal.active{display:flex}
+		#pw-dtf-qr-modal-inner{background:#fff;border-radius:14px;padding:28px 24px;max-width:380px;width:92%;text-align:center;position:relative}
+		#pw-dtf-qr-modal-close{position:absolute;top:10px;right:14px;font-size:22px;cursor:pointer;background:none;border:none;color:#555}
+		#pw-dtf-qr-modal img{width:220px;height:220px;margin:10px auto}
+		#pw-dtf-qr-copy{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:7px;cursor:pointer;font-size:12px;font-family:monospace;word-break:break-all;max-width:100%;margin:6px 0}
+		#pw-dtf-qr-status{margin-top:10px;font-size:13px;color:#555}
+	</style>';
+
+	echo '<div style="overflow-x:auto">';
 	echo '<table class="woocommerce-orders-table woocommerce-MyAccount-orders shop_table shop_table_responsive my_account_orders account-orders-table pw-dtf-sortable-table">';
 	echo '<thead><tr>';
-	echo '<th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th><th>Entrega</th><th>Status</th>';
+	echo '<th>Pedido</th><th>Data</th><th>Valor</th><th>Forma de Pagamento</th><th>Status Pagamento</th><th>Entrega</th><th>Situação</th><th>Ação</th>';
 	echo '</tr></thead><tbody>';
 
+	$payment_status_labels = array(
+		'paid'       => array( 'label' => 'Pago', 'class' => 'paid' ),
+		'pending_mp' => array( 'label' => 'Aguardando Pix', 'class' => 'pending' ),
+		'aguardando' => array( 'label' => 'Aguardando', 'class' => 'waiting' ),
+		''           => array( 'label' => '—', 'class' => '' ),
+	);
+
 	foreach ( $orders as $order ) {
-		$reference = get_post_meta( $order->ID, '_pw_dtf_reference', true );
-		$amount    = (float) get_post_meta( $order->ID, '_pw_dtf_amount', true );
-		$payment   = get_post_meta( $order->ID, '_pw_dtf_payment_label', true );
-		$delivery  = get_post_meta( $order->ID, '_pw_dtf_delivery_label', true );
-		$status    = get_post_meta( $order->ID, '_pw_dtf_status', true );
+		$reference      = get_post_meta( $order->ID, '_pw_dtf_reference', true );
+		$amount         = (float) get_post_meta( $order->ID, '_pw_dtf_amount', true );
+		$payment        = get_post_meta( $order->ID, '_pw_dtf_payment_label', true );
+		$delivery       = get_post_meta( $order->ID, '_pw_dtf_delivery_label', true );
+		$status         = get_post_meta( $order->ID, '_pw_dtf_status', true );
+		$pay_status     = (string) get_post_meta( $order->ID, '_pw_dtf_payment_status', true );
+		$pay_info       = isset( $payment_status_labels[ $pay_status ] ) ? $payment_status_labels[ $pay_status ] : $payment_status_labels[''];
+		$can_pay        = in_array( $pay_status, array( 'pending_mp', 'aguardando', '' ), true ) && $amount > 0;
 
 		echo '<tr class="' . ( 'Concluído' === $status ? 'pw-dtf-account-completed' : '' ) . '">';
 		echo '<td data-title="Pedido">' . esc_html( $reference ) . '</td>';
 		echo '<td data-title="Data">' . esc_html( pw_dtf_format_order_date( $order ) ) . '</td>';
 		echo '<td data-title="Valor">' . wp_kses_post( wc_price( $amount ) ) . '</td>';
-		echo '<td data-title="Pagamento">' . esc_html( $payment ) . '</td>';
+		echo '<td data-title="Forma de Pagamento">' . esc_html( $payment ) . '</td>';
+		echo '<td data-title="Status Pagamento"><span class="pw-dtf-pay-badge ' . esc_attr( $pay_info['class'] ) . '">' . esc_html( $pay_info['label'] ) . '</span></td>';
 		echo '<td data-title="Entrega">' . esc_html( $delivery ? $delivery : 'Não informada' ) . '</td>';
-		echo '<td data-title="Status">' . esc_html( $status ? $status : 'Enviado para análise' ) . '</td>';
+		echo '<td data-title="Situação">' . esc_html( $status ? $status : 'Enviado para análise' ) . '</td>';
+		echo '<td data-title="Ação">';
+		if ( $can_pay ) {
+			echo '<button class="pw-dtf-qr-btn" data-order-id="' . esc_attr( $order->ID ) . '" data-amount="' . esc_attr( $amount ) . '" onclick="pwDtfOpenQr(this)">&#128247; Gerar QR Code para pagamento</button>';
+		} else {
+			echo '—';
+		}
+		echo '</td>';
 		echo '</tr>';
 	}
 
-	echo '</tbody></table></div><script>(function(){var toggle=document.getElementById("pw-dtf-hide-completed");if(!toggle){return;}function apply(){document.querySelectorAll(".pw-dtf-account-completed").forEach(function(row){row.style.display=toggle.checked?"none":"";});}toggle.addEventListener("change",function(){apply();var form=new URLSearchParams();form.append("action","printway_dtf_save_completed_visibility");form.append("nonce",window.printway_dtf_nonce||"");form.append("hide",toggle.checked?"1":"0");fetch((window.PW_SERVER_DATA&&window.PW_SERVER_DATA.ajax_url)||"/wp-admin/admin-ajax.php",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()});});apply();})();</script>';
+	echo '</tbody></table></div>';
+
+	echo '<div id="pw-dtf-qr-modal"><div id="pw-dtf-qr-modal-inner">';
+	echo '<button id="pw-dtf-qr-modal-close" onclick="pwDtfCloseQr()" aria-label="Fechar">&times;</button>';
+	echo '<h3 style="margin:0 0 4px">Pagamento via Pix</h3>';
+	echo '<p style="margin:0 0 10px;color:#555;font-size:13px">Escaneie o QR Code ou copie o código Pix</p>';
+	echo '<img id="pw-dtf-qr-img" src="" alt="QR Code Pix" />';
+	echo '<div id="pw-dtf-qr-copy" onclick="pwDtfCopyPix(this)" title="Clique para copiar"><span id="pw-dtf-qr-text"></span></div>';
+	echo '<div id="pw-dtf-qr-status">Aguardando pagamento...</div>';
+	echo '</div></div>';
+
+	$js = 'var _pwDtfQrOrderId=0,_pwDtfQrPayId=0,_pwDtfQrPollTimer=null,_pwDtfQrSeq=0;
+function pwDtfOpenQr(btn){
+  var orderId=btn.dataset.orderId;
+  _pwDtfQrOrderId=orderId;_pwDtfQrSeq++;
+  var seq=_pwDtfQrSeq;
+  var modal=document.getElementById("pw-dtf-qr-modal");
+  var img=document.getElementById("pw-dtf-qr-img");
+  var txt=document.getElementById("pw-dtf-qr-text");
+  var st=document.getElementById("pw-dtf-qr-status");
+  img.src="";txt.textContent="";st.textContent="Gerando QR Code...";
+  modal.classList.add("active");
+  var form=new URLSearchParams();
+  form.append("action","pw_dtf_create_pix_for_order");
+  form.append("nonce",' . wp_json_encode( $nonce ) . ');
+  form.append("order_id",orderId);
+  fetch(' . wp_json_encode( $ajax_url ) . ',{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()})
+  .then(function(r){return r.json();})
+  .then(function(json){
+    if(seq!==_pwDtfQrSeq){return;}
+    if(!json.success){st.textContent=(json.data&&json.data.message)||"Erro ao gerar QR Code.";return;}
+    _pwDtfQrPayId=json.data.payment_id;
+    if(json.data.qr_base64){img.src="data:image/png;base64,"+json.data.qr_base64;}
+    txt.textContent=json.data.qr_code||"";
+    st.textContent="Aguardando confirmação do pagamento...";
+    if(_pwDtfQrPollTimer){clearInterval(_pwDtfQrPollTimer);}
+    _pwDtfQrPollTimer=setInterval(function(){pwDtfPollQr(seq,_pwDtfQrPayId,orderId);},4000);
+  })
+  .catch(function(){if(seq===_pwDtfQrSeq){st.textContent="Erro de conexão. Tente novamente.";}});
+}
+function pwDtfPollQr(seq,payId,orderId){
+  if(seq!==_pwDtfQrSeq){clearInterval(_pwDtfQrPollTimer);return;}
+  var form=new URLSearchParams();
+  form.append("action","pw_dtf_mp_check_pix");
+  form.append("nonce",' . wp_json_encode( $nonce ) . ');
+  form.append("payment_id",payId);
+  fetch(' . wp_json_encode( $ajax_url ) . ',{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()})
+  .then(function(r){return r.json();})
+  .then(function(json){
+    if(seq!==_pwDtfQrSeq){return;}
+    if(json.success&&json.data&&json.data.status==="approved"){
+      clearInterval(_pwDtfQrPollTimer);
+      var st=document.getElementById("pw-dtf-qr-status");
+      st.style.color="#166534";st.textContent="✓ Pagamento confirmado! Seu pedido foi atualizado.";
+      pwDtfRegisterPay(orderId,payId,seq);
+    }
+  }).catch(function(){});
+}
+function pwDtfRegisterPay(orderId,payId,seq){
+  var form=new URLSearchParams();
+  form.append("action","pw_dtf_register_mp_payment");
+  form.append("nonce",' . wp_json_encode( $nonce ) . ');
+  form.append("order_id",orderId);
+  form.append("mp_payment_id",payId);
+  fetch(' . wp_json_encode( $ajax_url ) . ',{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()}).catch(function(){});
+  setTimeout(function(){location.reload();},3000);
+}
+function pwDtfCloseQr(){
+  _pwDtfQrSeq++;
+  if(_pwDtfQrPollTimer){clearInterval(_pwDtfQrPollTimer);_pwDtfQrPollTimer=null;}
+  document.getElementById("pw-dtf-qr-modal").classList.remove("active");
+}
+function pwDtfCopyPix(el){
+  var t=document.getElementById("pw-dtf-qr-text").textContent;
+  if(!t){return;}
+  navigator.clipboard&&navigator.clipboard.writeText(t).then(function(){el.style.background="#dcfce7";setTimeout(function(){el.style.background="";},1500);});
+}';
+
+	echo '<script>' . $js . '</script>';
+
+	echo '<script>(function(){var toggle=document.getElementById("pw-dtf-hide-completed");if(!toggle){return;}function apply(){document.querySelectorAll(".pw-dtf-account-completed").forEach(function(row){row.style.display=toggle.checked?"none":"";});}toggle.addEventListener("change",function(){apply();var form=new URLSearchParams();form.append("action","printway_dtf_save_completed_visibility");form.append("nonce",window.printway_dtf_nonce||"");form.append("hide",toggle.checked?"1":"0");fetch((window.PW_SERVER_DATA&&window.PW_SERVER_DATA.ajax_url)||"/wp-admin/admin-ajax.php",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:form.toString()});});apply();})();</script>';
 	pw_dtf_render_sortable_table_script();
 }
 
@@ -2024,6 +2143,7 @@ function pw_dtf_expose_ajax_config() {
 		'price_table'       => pw_dtf_get_unified_price_table(),
 		'rounding'          => pw_dtf_get_rounding_settings(),
 		'mp_pix_enabled'    => ( $_mp_token && strlen( $_mp_token ) > 10 ),
+		'dtf_orders_url'    => function_exists( 'wc_get_account_endpoint_url' ) ? add_query_arg( 'tipo', 'dtf-uv', wc_get_account_endpoint_url( 'orders' ) ) : home_url( '/minha-conta/orders/?tipo=dtf-uv' ),
 	);
 
 	if ( is_user_logged_in() ) {
@@ -2093,6 +2213,50 @@ function pw_dtf_enable_shared_excess_values() {
 function pw_dtf_mp_get_token() {
 	$s = get_option( 'pw_printway_mp_settings', array() );
 	return is_array( $s ) ? ( $s['access_token'] ?? '' ) : '';
+}
+
+function pw_dtf_mp_create_pix_payment( $amount, $payer_name, $payer_email, $description = 'Pedido DTF UV', $idempotency_key = '' ) {
+	$access_token = pw_dtf_mp_get_token();
+	if ( ! $access_token ) {
+		return new WP_Error( 'mp_not_configured', 'Mercado Pago não configurado.' );
+	}
+	if ( ! is_email( $payer_email ) ) {
+		$payer_email = 'cliente@printway.com.br';
+	}
+	if ( ! $idempotency_key ) {
+		$idempotency_key = 'pw-dtf-pix-' . wp_generate_uuid4();
+	}
+	$body = array(
+		'transaction_amount' => round( (float) $amount, 2 ),
+		'description'        => $description,
+		'payment_method_id'  => 'pix',
+		'payer'              => array( 'email' => $payer_email ),
+	);
+	$response = wp_remote_post( 'https://api.mercadopago.com/v1/payments', array(
+		'headers' => array(
+			'Authorization'     => 'Bearer ' . $access_token,
+			'Content-Type'      => 'application/json',
+			'X-Idempotency-Key' => $idempotency_key,
+		),
+		'body'    => wp_json_encode( $body ),
+		'timeout' => 15,
+	) );
+	if ( is_wp_error( $response ) ) {
+		return new WP_Error( 'mp_connection', 'Erro de conexão com Mercado Pago: ' . $response->get_error_message() );
+	}
+	$code = wp_remote_retrieve_response_code( $response );
+	$data = json_decode( wp_remote_retrieve_body( $response ), true );
+	if ( 201 !== (int) $code || empty( $data['id'] ) ) {
+		$msg = $data['message'] ?? ( $data['cause'][0]['description'] ?? 'Erro ao criar pagamento PIX.' );
+		return new WP_Error( 'mp_api_error', $msg );
+	}
+	$pix = $data['point_of_interaction']['transaction_data'] ?? array();
+	return array(
+		'payment_id' => $data['id'],
+		'qr_code'    => $pix['qr_code'] ?? '',
+		'qr_base64'  => $pix['qr_code_base64'] ?? '',
+		'expires_at' => $data['date_of_expiration'] ?? '',
+	);
 }
 
 function pw_dtf_mp_create_pix() {
@@ -2392,6 +2556,8 @@ function pw_dtf_save_user_profile() {
 	wp_send_json_success( array( 'saved' => true ) );
 }
 add_action( 'wp_ajax_printway_dtf_save_user_profile', 'pw_dtf_save_user_profile' );
+add_action( 'wp_ajax_pw_dtf_register_mp_payment',  'pw_dtf_register_mp_payment' );
+add_action( 'wp_ajax_pw_dtf_create_pix_for_order', 'pw_dtf_create_pix_for_order' );
 add_action( 'wp_ajax_' . PW_DTF_VALIDATE_PAY_LATER_ACTION, 'pw_dtf_validate_pay_later' );
 add_action( 'wp_ajax_printway_dtf_get_pay_later_access', 'pw_dtf_get_pay_later_access' );
 add_action( 'wp_ajax_printway_dtf_get_points_access', 'pw_dtf_get_points_access' );
@@ -2496,6 +2662,100 @@ function pw_dtf_get_points_access() {
 	);
 }
 
+function pw_dtf_register_mp_payment() {
+	check_ajax_referer( PW_DTF_NONCE_ACTION, 'nonce' );
+
+	if ( ! is_user_logged_in() ) {
+		wp_send_json_error( array( 'message' => 'Login necessário.' ), 403 );
+	}
+
+	$order_id      = absint( pw_dtf_post_raw( 'order_id' ) );
+	$mp_payment_id = sanitize_text_field( pw_dtf_post_raw( 'mp_payment_id' ) );
+
+	if ( ! $order_id || ! $mp_payment_id ) {
+		wp_send_json_error( array( 'message' => 'Parâmetros inválidos.' ), 400 );
+	}
+
+	$post = get_post( $order_id );
+	if ( ! $post || 'pw_dtf_order' !== $post->post_type ) {
+		wp_send_json_error( array( 'message' => 'Pedido não encontrado.' ), 404 );
+	}
+
+	$owner = (int) get_post_meta( $order_id, '_pw_dtf_user_id', true );
+	if ( $owner && $owner !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Sem permissão.' ), 403 );
+	}
+
+	update_post_meta( $order_id, '_pw_dtf_mp_payment_id', $mp_payment_id );
+	update_post_meta( $order_id, '_pw_dtf_payment_status', 'paid' );
+	update_post_meta( $order_id, '_pw_dtf_payment_label', 'Pix MercadoPago — Pago' );
+
+	$history   = get_post_meta( $order_id, '_pw_dtf_payment_history', true );
+	$history   = is_array( $history ) ? $history : array();
+	$history[] = array(
+		'date'       => current_time( 'mysql' ),
+		'method'     => 'Pix MercadoPago',
+		'mp_id'      => $mp_payment_id,
+		'status'     => 'Pago',
+		'amount'     => (float) get_post_meta( $order_id, '_pw_dtf_amount', true ),
+	);
+	update_post_meta( $order_id, '_pw_dtf_payment_history', $history );
+
+	wp_send_json_success( array( 'message' => 'Pagamento registrado.' ) );
+}
+
+function pw_dtf_create_pix_for_order() {
+	check_ajax_referer( PW_DTF_NONCE_ACTION, 'nonce' );
+
+	if ( ! is_user_logged_in() ) {
+		wp_send_json_error( array( 'message' => 'Login necessário.' ), 403 );
+	}
+
+	$order_id = absint( pw_dtf_post_raw( 'order_id' ) );
+	if ( ! $order_id ) {
+		wp_send_json_error( array( 'message' => 'Parâmetros inválidos.' ), 400 );
+	}
+
+	$post = get_post( $order_id );
+	if ( ! $post || 'pw_dtf_order' !== $post->post_type ) {
+		wp_send_json_error( array( 'message' => 'Pedido não encontrado.' ), 404 );
+	}
+
+	$owner = (int) get_post_meta( $order_id, '_pw_dtf_user_id', true );
+	if ( $owner && $owner !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Sem permissão.' ), 403 );
+	}
+
+	$status = get_post_meta( $order_id, '_pw_dtf_payment_status', true );
+	if ( 'paid' === $status ) {
+		wp_send_json_error( array( 'message' => 'Este pedido já foi pago.' ), 409 );
+	}
+
+	$amount = (float) get_post_meta( $order_id, '_pw_dtf_amount', true );
+	if ( $amount <= 0 ) {
+		wp_send_json_error( array( 'message' => 'Valor inválido para geração do Pix.' ), 400 );
+	}
+
+	$name      = get_post_meta( $order_id, '_pw_dtf_name', true );
+	$email_val = get_post_meta( $order_id, '_pw_dtf_email', true );
+	$reference = $post->post_title;
+
+	$result = pw_dtf_mp_create_pix_payment( $amount, $name, $email_val, $reference );
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error( array( 'message' => $result->get_error_message() ), 500 );
+	}
+
+	update_post_meta( $order_id, '_pw_dtf_mp_payment_id', $result['payment_id'] );
+	update_post_meta( $order_id, '_pw_dtf_payment_status', 'pending_mp' );
+
+	wp_send_json_success( array(
+		'payment_id'  => $result['payment_id'],
+		'qr_code'     => $result['qr_code'],
+		'qr_base64'   => $result['qr_base64'],
+		'expires_at'  => $result['expires_at'],
+	) );
+}
+
 function pw_dtf_validate_pay_later() {
 	check_ajax_referer( PW_DTF_NONCE_ACTION, 'nonce' );
 
@@ -2553,7 +2813,9 @@ function pw_dtf_send_order() {
 		'entrega_taxa'   => 'Entregar mediante taxa de entrega que irei pagar',
 	);
 
-	if ( ! in_array( $payment, array( 'pix', 'points', 'alternative' ), true ) ) {
+	$mp_payment_id = sanitize_text_field( $_POST['mp_payment_id'] ?? '' );
+
+	if ( ! in_array( $payment, array( 'pix', 'points', 'alternative', 'mp_pix', 'finalizar_sem_pagar' ), true ) ) {
 		wp_send_json_error( array( 'message' => 'A forma de pagamento informada é inválida.' ), 400 );
 	}
 
@@ -2590,7 +2852,7 @@ function pw_dtf_send_order() {
 
 	$payment_session = false;
 
-	if ( in_array( $payment, array( 'pix', 'points' ), true ) ) {
+	if ( in_array( $payment, array( 'pix', 'points', 'mp_pix' ), true ) ) {
 		$payment_session = pw_dtf_get_payment_session( $payment_session_id );
 
 		if ( ! $payment_session ) {
@@ -2600,11 +2862,12 @@ function pw_dtf_send_order() {
 			);
 		}
 
+		$expected_payment_method = ( 'mp_pix' === $payment ) ? 'pix' : $payment;
 		if (
 			(int) $payment_session['user_id'] !== get_current_user_id() ||
 			abs( (float) $payment_session['height'] - $height ) > 0.01 ||
 			(string) $payment_session['customer_type'] !== $customer ||
-			(string) $payment_session['payment_method'] !== $payment
+			(string) $payment_session['payment_method'] !== $expected_payment_method
 		) {
 			wp_send_json_error(
 				array( 'message' => 'Os dados do pedido foram alterados depois da geração do pagamento. Gere o pagamento novamente.' ),
@@ -2630,7 +2893,7 @@ function pw_dtf_send_order() {
 		if ( ! in_array( $payment, array( 'pix', 'points' ), true ) || empty( $settings['enabled'] ) || ! is_user_logged_in() || $points_used > $balance || $points_discount > $max_discount + 0.01 || abs( $points_discount - $calculated_discount ) > 0.01 || abs( $amount - max( 0, $original - $points_discount ) ) > 0.01 ) {
 			wp_send_json_error( array( 'message' => 'A troca de pontos informada não é válida.' ), 400 );
 		}
-	} elseif ( 'pix' === $payment && $original > 0 && abs( $amount - $original ) > 0.01 ) {
+	} elseif ( in_array( $payment, array( 'pix', 'mp_pix' ), true ) && $original > 0 && abs( $amount - $original ) > 0.01 ) {
 		wp_send_json_error( array( 'message' => 'O valor do Pix não corresponde ao valor do pedido.' ), 400 );
 	}
 
@@ -2677,6 +2940,8 @@ function pw_dtf_send_order() {
 		}
 	}
 
+	$no_receipt_payment = in_array( $payment, array( 'mp_pix', 'finalizar_sem_pagar' ), true );
+
 	$recipient = apply_filters( 'printway_dtf_recipient_email', pw_dtf_get_recipient_email() );
 
 	if ( ! is_email( $recipient ) ) {
@@ -2706,8 +2971,8 @@ function pw_dtf_send_order() {
 		'Fonte do cálculo: ' . $source,
 		'Detalhe: ' . $detail,
 		'Expressão: ' . $expression,
-		'Forma de pagamento: ' . ( 'pix' === $payment ? 'Pagar agora por Pix' : ( 'points' === $payment ? 'Pago integralmente com pontos' : 'Pagar depois' ) ),
-		'Opção de pagamento: ' . ( 'pix' === $payment ? 'Pix' : ( 'points' === $payment ? 'Pontos' : $alternative_payments[ $payment_type ] ) ),
+		'Forma de pagamento: ' . pw_dtf_payment_label( $payment, $payment_type, $alternative_payments ),
+		'Opção de pagamento: ' . pw_dtf_payment_option_label( $payment, $payment_type, $alternative_payments ),
 		'Entrega/retirada: ' . $delivery_options[ $delivery ],
 		'',
 		'Instruções complementares:',
@@ -2750,7 +3015,7 @@ function pw_dtf_send_order() {
 			'Valor' => wp_strip_all_tags( wc_price( $amount ) ),
 			'Altura' => number_format_i18n( $height, 2 ) . ' cm',
 			'Tipo de cliente' => $customer,
-			'Pagamento' => 'pix' === $payment ? 'Pagar agora por Pix' : ( 'points' === $payment ? 'Pago integralmente com pontos' : 'Pagar depois' ),
+			'Pagamento' => pw_dtf_payment_label( $payment, $payment_type, $alternative_payments ),
 			'Entrega/retirada' => $delivery_options[ $delivery ],
 			'Observações' => $instructions ? $instructions : 'Nenhuma.',
 		)
@@ -2791,7 +3056,7 @@ function pw_dtf_send_order() {
 			'original'       => $original > 0 ? $original : $amount,
 			'height'         => $height,
 			'customer_type'  => $customer,
-			'payment_label'  => 'pix' === $payment ? 'Pagar agora por Pix' : ( 'points' === $payment ? 'Pago integralmente com pontos' : $alternative_payments[ $payment_type ] ),
+			'payment_label'  => pw_dtf_payment_label( $payment, $payment_type, $alternative_payments ),
 			'delivery_label' => $delivery_options[ $delivery ],
 			'points_used'    => $points_used,
 			'points_discount'=> $points_discount,
@@ -2812,6 +3077,19 @@ function pw_dtf_send_order() {
 
 	$order_post = get_page_by_title( $order_reference, OBJECT, 'pw_dtf_order' );
 	$order_id   = $order_post ? (int) $order_post->ID : 0;
+
+	if ( $order_id ) {
+		if ( 'mp_pix' === $payment ) {
+			update_post_meta( $order_id, '_pw_dtf_mp_payment_id', sanitize_text_field( $mp_payment_id ) );
+			update_post_meta( $order_id, '_pw_dtf_payment_status', 'pending_mp' );
+		} elseif ( 'finalizar_sem_pagar' === $payment ) {
+			update_post_meta( $order_id, '_pw_dtf_payment_status', 'aguardando' );
+		} elseif ( 'pix' === $payment ) {
+			update_post_meta( $order_id, '_pw_dtf_payment_status', 'paid' );
+		} elseif ( 'points' === $payment ) {
+			update_post_meta( $order_id, '_pw_dtf_payment_status', 'paid' );
+		}
+	}
 
 	$mail_error     = null;
 	$error_listener = function ( $error ) use ( &$mail_error ) {
@@ -2835,12 +3113,12 @@ function pw_dtf_send_order() {
 	);
 	pw_dtf_log_email( $recipient, $subject, 'Novo pedido (empresa)', $sent, $order_id );
 
-	if ( $sent && $send_customer_copy ) {
+	if ( $send_customer_copy && ( $sent || $no_receipt_payment ) ) {
 		$customer_rows = array(
 			'Cliente' => $name,
 			'Valor' => wp_strip_all_tags( wc_price( $amount ) ),
 			'Altura' => number_format_i18n( $height, 2 ) . ' cm',
-			'Forma de pagamento' => 'pix' === $payment ? 'Pagar agora por Pix' : ( 'points' === $payment ? 'Pago integralmente com pontos' : 'Pagar depois' ),
+			'Forma de pagamento' => pw_dtf_payment_label( $payment, $payment_type, $alternative_payments ),
 			'Entrega/retirada' => $delivery_options[ $delivery ],
 			'Status inicial' => 'Enviado para análise',
 		);
@@ -2851,7 +3129,7 @@ function pw_dtf_send_order() {
 
 	remove_action( 'wp_mail_failed', $error_listener );
 
-	if ( ! $sent ) {
+	if ( ! $sent && ! $no_receipt_payment ) {
 		if ( $points_deducted ) {
 			pw_dtf_restore_points_to_user( get_current_user_id(), $points_used, 'Estorno: falha no envio do pedido ' . $order_reference );
 		}
@@ -2897,7 +3175,7 @@ function pw_dtf_send_order() {
 			'height'          => $height,
 			'customer_type'   => $customer,
 			'payment_method'  => $payment,
-			'payment_label'   => 'pix' === $payment ? 'Pix' : ( 'points' === $payment ? 'Pontos' : ( isset( $alternative_payments[ $payment_type ] ) ? $alternative_payments[ $payment_type ] : 'Outro' ) ),
+			'payment_label'   => pw_dtf_payment_option_label( $payment, $payment_type, $alternative_payments ),
 			'delivery_label'  => isset( $delivery_options[ $delivery ] ) ? $delivery_options[ $delivery ] : $delivery,
 			'points_used'     => $points_used,
 			'points_discount' => $points_discount,
@@ -2908,14 +3186,35 @@ function pw_dtf_send_order() {
 
 	wp_send_json_success(
 		array(
-			'message'     => 'Pedido enviado com sucesso.',
+			'message'         => 'Pedido enviado com sucesso.',
 			'order_reference' => $order_reference,
-			'order_saved' => '' !== $order_reference,
-			'admin_debug' => current_user_can( 'manage_options' )
+			'order_id'        => $order_id,
+			'order_saved'     => '' !== $order_reference,
+			'admin_debug'     => current_user_can( 'manage_options' )
 				? 'O wp_mail() aceitou o envio para ' . $recipient . '.' . ( '' === $order_reference ? ' Atenção: o pedido não foi registrado na listagem.' : ' Pedido registrado como ' . $order_reference . '.' )
 				: '',
 		)
 	);
+}
+
+function pw_dtf_payment_label( $payment, $payment_type = '', $alternative_payments = array() ) {
+	switch ( $payment ) {
+		case 'pix':    return 'Pagar agora por Pix';
+		case 'points': return 'Pago integralmente com pontos';
+		case 'mp_pix': return 'Pix MercadoPago — Aguardando pagamento';
+		case 'finalizar_sem_pagar': return 'Aguardando pagamento';
+		default:       return isset( $alternative_payments[ $payment_type ] ) ? $alternative_payments[ $payment_type ] : 'Pagar depois';
+	}
+}
+
+function pw_dtf_payment_option_label( $payment, $payment_type = '', $alternative_payments = array() ) {
+	switch ( $payment ) {
+		case 'pix':    return 'Pix';
+		case 'points': return 'Pontos';
+		case 'mp_pix': return 'Pix (MercadoPago)';
+		case 'finalizar_sem_pagar': return 'Sem pagamento inicial';
+		default:       return isset( $alternative_payments[ $payment_type ] ) ? $alternative_payments[ $payment_type ] : 'Outro';
+	}
 }
 
 function pw_dtf_generate_order_reference( $user_id ) {

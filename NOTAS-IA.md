@@ -295,6 +295,44 @@ pedidos/
 
 ---
 
+### 2026-09-29 — email v2.4.21 / dtfUV fluxo de pagamento MP PIX
+
+**O que foi feito:**
+- Removido botão "Pagar depois" do step 3 da calculadora DTF UV.
+- Botão "Pagar agora (Pix - QR Code)" renomeado para "Pagar com Pix (QR Code)".
+- Adicionado botão "Finalizar sem pagar" (visível apenas para usuários logados).
+- Mensagem de espera atualizada: "Aguardando confirmação do pagamento PIX... — Após o pagamento seu pedido será finalizado automaticamente..."
+- Step 3 agora é o passo final: ao clicar "Pagar com Pix (QR Code)" e o QR ser gerado,
+  o sistema já cria o pedido imediatamente via `createDtfOrder()` em `dtf-uv.js`.
+- Banner "Pedido criado com sucesso!" exibido após criação com link para Minha Conta.
+- Novos métodos de pagamento em `pw_dtf_send_order()`: `mp_pix` e `finalizar_sem_pagar`.
+- Para `mp_pix`/`finalizar_sem_pagar`: sem exigência de comprovante; ordem persiste mesmo se email falhar.
+- Novas funções auxiliares `pw_dtf_payment_label()` e `pw_dtf_payment_option_label()`.
+- Metas salvas no post `pw_dtf_order`: `_pw_dtf_mp_payment_id`, `_pw_dtf_payment_status`, `_pw_dtf_payment_history`.
+- Resposta AJAX agora inclui `order_id` além de `order_reference`.
+- Novo AJAX `pw_dtf_register_mp_payment`: atualiza status para 'paid' e registra em `_pw_dtf_payment_history`.
+- Novo AJAX `pw_dtf_create_pix_for_order`: gera QR MP PIX a partir do pedido já criado.
+- Nova função PHP `pw_dtf_mp_create_pix_payment()`: helper reutilizável para criar pagamento MP PIX.
+- `pw_dtf_render_account_orders()` atualizada: nova coluna "Status Pagamento", coluna "Ação" com botão
+  "Gerar QR Code para pagamento" para ordens não pagas, modal com QR + polling + registro automático.
+- `dtf_orders_url` exposto em `PW_SERVER_DATA` para link direto na área do cliente.
+- Checkbox "Enviar cópia para meu email" funciona com os novos métodos (`mp_pix`, `finalizar_sem_pagar`).
+
+**Decisões técnicas:**
+- `mp_pix` usa a mesma sessão de pagamento que `pix` (criada por `pw_dtf_prepare_payment`);
+  a validação aceita `payment_method = 'pix'` na sessão quando `$payment === 'mp_pix'`.
+- Para `finalizar_sem_pagar`: sem sessão de pagamento, status `aguardando`; ordem criada imediatamente.
+- Email de falha NÃO cancela a ordem para `mp_pix`/`finalizar_sem_pagar` (QR já foi mostrado ao cliente).
+- Polling de 4s na área do cliente usa `pw_dtf_mp_check_pix` (mesmo endpoint do step 3).
+- Modal QR na área do cliente não requer reload — registra pagamento e recarrega a página após 3s.
+
+**Arquivos alterados:**
+- `dtfUV/templates/dtf-uv-markup.php`
+- `dtfUV/assets/dtf-uv.js`
+- `email/printway-dtf-email.php` (versão → 2.4.21)
+
+---
+
 ### 2026-09-29 — v1.32.398
 
 **O que foi feito:**

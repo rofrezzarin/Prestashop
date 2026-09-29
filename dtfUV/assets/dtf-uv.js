@@ -33,6 +33,9 @@
       let CALCULATION_RECORD_ID = 0;
       let CURRENT_STEP = 1;
 
+      var DTF_ORDER_ID = 0;
+      var DTF_ORDER_CREATED = false;
+
       let qrGenerationSequence = 0;
       let proofValidationSequence = 0;
       let paymentSessionSequence = 0;
@@ -2425,7 +2428,7 @@
         }
 
         const btnPayNow = document.getElementById("btn-pay-now");
-        const btnPayLater = document.getElementById("btn-pay-later");
+        const btnPayLater = null;
         const payLaterArea = document.getElementById("pw-pay-later-area");
         const payLaterCode = document.getElementById("pw-pay-later-code");
         const btnValidatePayLater = document.getElementById("btn-validate-pay-later");
@@ -2466,20 +2469,15 @@
             : "none";
 
           btnPayNow.disabled = PAYMENT_CONTROLS_LOCKED;
-          btnPayLater.disabled = PAYMENT_CONTROLS_LOCKED || !userCanPayLater();
 
           if (PAYMENT_CONTROLS_LOCKED) {
             pointsInput.disabled = true;
             btnApplyPoints.disabled = true;
             btnPayNow.title = "Forma de pagamento bloqueada após a validação do comprovante.";
-            btnPayLater.title = "Forma de pagamento bloqueada após a validação do comprovante.";
             btnApplyPoints.title = "Os pontos foram bloqueados após a validação do comprovante.";
           } else {
             btnPayNow.removeAttribute("title");
             btnApplyPoints.removeAttribute("title");
-            if (userCanPayLater()) {
-              btnPayLater.removeAttribute("title");
-            }
           }
         }
 
@@ -2612,7 +2610,6 @@
           pointsInput.disabled = PAYMENT_CONTROLS_LOCKED || !enabled || maxPoints <= 0;
           btnApplyPoints.disabled = PAYMENT_CONTROLS_LOCKED || !enabled || maxPoints <= 0;
           btnPayNow.disabled = PAYMENT_CONTROLS_LOCKED;
-          btnPayLater.disabled = PAYMENT_CONTROLS_LOCKED || !userCanPayLater();
 
           const earnRate = Number(POINTS_SETTINGS?.earn_points_per_real || 0);
           const pointsToEarn = Math.max(0, Math.floor(getPayableAmount() * earnRate));
@@ -2704,60 +2701,8 @@
         }
 
         if (currentUser) {
-          btnPayLater.style.display = "inline-flex";
-
-          const hasPayLaterPermission =
-            typeof currentUser.can_pay_later === "boolean"
-              ? currentUser.can_pay_later
-              : true;
-
-          if (!hasPayLaterPermission) {
-            btnPayLater.disabled = true;
-            btnPayLater.title =
-              "Você não possui um código de liberação para Pagar depois.";
-          }
-
-          const accessForm = new URLSearchParams();
-          accessForm.append("action", "printway_dtf_get_pay_later_access");
-
-          fetch(window.PW_DTF_UPLOAD_URL || "/wp-admin/admin-ajax.php", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            },
-            body: accessForm.toString(),
-          })
-            .then(function (response) {
-              return response.json();
-            })
-            .then(function (json) {
-              if (!json || !json.success || !json.data) {
-                return;
-              }
-
-              currentUser.can_pay_later = !!json.data.can_pay_later;
-              currentUser.pay_later_code = json.data.pay_later_code || "";
-
-              if (currentUser.can_pay_later && !PAYMENT_CONTROLS_LOCKED) {
-                btnPayLater.disabled = false;
-                btnPayLater.removeAttribute("title");
-              } else {
-                btnPayLater.disabled = true;
-                btnPayLater.title =
-                  "Você não possui um código de liberação para Pagar depois.";
-              }
-
-              if (currentUser.is_admin) {
-                info.textContent = info.textContent.replace(
-                  /Código de liberação: [^|]*/,
-                  "Código de liberação: " +
-                    (currentUser.pay_later_code || "não cadastrado"),
-                );
-              }
-            })
-            .catch(function () {
-              /* Mantém a informação disponível no carregamento da página. */
-            });
+          const btnFinishNoPay = document.getElementById("btn-finish-no-pay");
+          if (btnFinishNoPay) btnFinishNoPay.style.display = "inline-flex";
         }
 
         btnPayNow.addEventListener("click", function () {
@@ -2774,30 +2719,33 @@
           btnGenerateQr.click();
         });
 
-        btnPayLater.addEventListener("click", function () {
-          if (PAYMENT_CONTROLS_LOCKED) {
-            return;
-          }
-
-          qrGenerationSequence++;
-          invalidatePaymentSession();
-          PAYMENT_METHOD = "alternative";
-          PAY_LATER_VALIDATED = false;
-
-          if (!payLaterCode.value && currentUser && currentUser.pay_later_code) {
-            payLaterCode.value = currentUser.pay_later_code;
-          }
-
-          qrContainer.innerHTML = "";
-          pointsArea.style.display = "none";
-          copyArea.style.display = "none";
-          proofArea.style.display = "none";
-          btnNext3.disabled = true;
-          payLaterArea.style.display = "block";
-          payLaterStatus.textContent = "Digite seu código para liberar as opções.";
-          payLaterStatus.className = "pw-proof-status wait";
-          refreshAdvanceAvailability();
-        });
+        var btnFinishNoPay = document.getElementById("btn-finish-no-pay");
+        if (btnFinishNoPay) {
+          btnFinishNoPay.addEventListener("click", async function () {
+            if (!getSelectedDeliveryMethod()) {
+              paymentMsg.style.color = "var(--danger)";
+              paymentMsg.textContent = "Selecione como deseja receber o pedido antes de continuar.";
+              return;
+            }
+            if (!productionFile) {
+              paymentMsg.style.color = "var(--danger)";
+              paymentMsg.textContent = "Nenhum PDF válido foi selecionado para produção.";
+              return;
+            }
+            btnFinishNoPay.disabled = true;
+            btnFinishNoPay.textContent = "Registrando...";
+            try {
+              await createDtfOrder(0, qrGenerationSequence, "finalizar_sem_pagar");
+              btnFinishNoPay.style.display = "none";
+              btnNext3.style.display = "none";
+            } catch(e) {
+              btnFinishNoPay.disabled = false;
+              btnFinishNoPay.textContent = "Finalizar sem pagar";
+              paymentMsg.style.color = "var(--danger)";
+              paymentMsg.textContent = e.message || "Erro ao registrar pedido.";
+            }
+          });
+        }
 
         btnValidatePayLater.addEventListener("click", async function () {
           const code = payLaterCode.value.trim();
@@ -2885,6 +2833,7 @@
           proofInput.value = "";
 
           btnNext3.disabled = true;
+          btnNext3.style.display = "";
 
           paymentMsg.textContent = "";
 
@@ -2908,13 +2857,19 @@
 
           paymentOption.value = "";
 
-          payLaterArea.style.display = "none";
+          if (payLaterArea) payLaterArea.style.display = "none";
 
           payLaterOptions.style.display = "none";
 
           deliveryMethods.forEach(function(input) {
             input.checked = false;
           });
+
+          DTF_ORDER_ID = 0;
+          DTF_ORDER_CREATED = false;
+          var banner = document.getElementById("pw-order-created-banner");
+          if (banner) banner.style.display = "none";
+          if (btnFinishNoPay && currentUser) btnFinishNoPay.style.display = "inline-flex";
 
           refreshAdvanceAvailability();
 
@@ -4008,15 +3963,78 @@
           if (mpStatusEl) mpStatusEl.style.display = "none";
         }
 
+        function showOrderCreatedBanner(reference) {
+          var banner = document.getElementById("pw-order-created-banner");
+          if (!banner) return;
+          var refEl = document.getElementById("pw-order-created-ref");
+          if (refEl) refEl.textContent = reference ? "Pedido " + reference + ". " : "";
+          var link = document.getElementById("pw-orders-link");
+          if (link && window.PW_SERVER_DATA && window.PW_SERVER_DATA.dtf_orders_url) {
+            link.href = window.PW_SERVER_DATA.dtf_orders_url;
+          }
+          banner.style.display = "block";
+          if (btnFinishNoPay) btnFinishNoPay.style.display = "none";
+          btnNext3.style.display = "none";
+        }
+
+        async function createDtfOrder(mpPayId, seq, paymentMethodOverride) {
+          if (seq !== qrGenerationSequence) return;
+          if (DTF_ORDER_CREATED) return;
+          var config = findExistingBackendConfig();
+          if (!config || !productionFile) return;
+          var data = getOrderData();
+          data.payment_method = paymentMethodOverride || "mp_pix";
+          var form = new FormData();
+          form.append("action", config.action);
+          form.append("nonce", config.nonce);
+          form.append("pdf", productionFile, productionFile.name);
+          if (mpPayId) form.append("mp_payment_id", String(mpPayId));
+          form.append("terms_accepted", "1");
+          form.append("production_authorized", "1");
+          Object.keys(data).forEach(function(k) { form.append(k, data[k]); });
+          try {
+            var r = await fetch(config.url, { method: "POST", body: form });
+            var json = await r.json();
+            if (json && json.success) {
+              DTF_ORDER_ID = (json.data && json.data.order_id) ? Number(json.data.order_id) : 0;
+              DTF_ORDER_CREATED = true;
+              showOrderCreatedBanner(json.data && json.data.order_reference);
+            } else {
+              var msg = (json && json.data && json.data.message) || "Erro ao registrar pedido.";
+              throw new Error(msg);
+            }
+          } catch(e) { throw e; }
+        }
+
+        async function registerMpPayment(orderId, mpPaymentIdVal) {
+          if (!orderId || !mpPaymentIdVal) return;
+          var config = findExistingBackendConfig();
+          if (!config) return;
+          var form = new URLSearchParams();
+          form.append("action", "pw_dtf_register_mp_payment");
+          form.append("nonce", config.nonce);
+          form.append("order_id", String(orderId));
+          form.append("mp_payment_id", String(mpPaymentIdVal));
+          try {
+            await fetch(config.url, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+              body: form.toString(),
+            });
+          } catch(e) { console.warn("registerMpPayment:", e); }
+        }
+
         function markMpPixApproved() {
           stopMpPixPolling();
           QR_GENERATED    = true;
           PROOF_VALIDATED = true;
           proofArea.style.display = "none";
-          setMpStatus("✓ Pagamento confirmado pelo Mercado Pago! Você pode avançar.", "ok");
+          setMpStatus("✓ Pagamento confirmado! Seu pedido foi registrado com sucesso.", "ok");
           paymentMsg.style.color   = "#2b7a2b";
-          paymentMsg.textContent   = "Pagamento PIX confirmado automaticamente.";
+          paymentMsg.textContent   = "Pagamento PIX confirmado. Seu pedido está registrado no nosso sistema.";
+          btnNext3.style.display   = "none";
           refreshAdvanceAvailability();
+          registerMpPayment(DTF_ORDER_ID, mpPaymentId);
         }
 
         async function pollMpPixStatus(payId, seq) {
@@ -4091,16 +4109,19 @@
 
           copyArea.style.display = "flex";
           proofArea.style.display = "none";
-          setMpStatus("⏳ Aguardando confirmação do pagamento PIX...", "wait");
+          setMpStatus("⏳ Aguardando confirmação do pagamento PIX... — Após o pagamento seu pedido será finalizado automaticamente e registrado no nosso sistema.", "wait");
           paymentMsg.style.color  = "#2b7a2b";
           paymentMsg.textContent  = "Escaneie o QR ou copie o código Pix. Confirmaremos o pagamento automaticamente.";
           QR_GENERATED    = true;
           PROOF_VALIDATED = false;
           refreshAdvanceAvailability();
+          btnNext3.style.display = "none";
 
           stopMpPixPolling();
           pollMpPixStatus(mpPaymentId, curMpSeq);
           mpPixPollTimer = setInterval(function() { pollMpPixStatus(mpPaymentId, curMpSeq); }, 4000);
+
+          createDtfOrder(mpPaymentId, seq, "mp_pix");
         }
 
         btnGenerateQr.addEventListener("click", function () {

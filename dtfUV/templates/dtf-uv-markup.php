@@ -414,8 +414,7 @@
             </div>
 
             <div id="pw-payment-choice" style="display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 12px">
-              <button id="btn-pay-now" class="pw-btn" type="button">Pagar agora (Pix - QR Code)</button>
-              <button id="btn-pay-later" class="pw-btn ghost" type="button" style="display:none">Pagar depois</button>
+              <button id="btn-pay-now" class="pw-btn" type="button">Pagar com Pix (QR Code)</button>
             </div>
 
             <div id="pw-payment-lock-notice" class="pw-proof-status ok" style="display:none;margin:0 0 12px">
@@ -443,6 +442,11 @@
             <div id="payment-msg" style="margin-top: 10px"></div>
 
             <div id="pw-mp-pix-status" style="display:none;margin-top:12px;padding:12px 16px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:14px;color:#166534;"></div>
+
+            <div id="pw-order-created-banner" style="display:none;margin-top:14px;padding:14px 18px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:14px;color:#166534;line-height:1.6">
+              <strong>✓ Pedido criado com sucesso!</strong><br>
+              <span id="pw-order-created-ref"></span>Você pode consultar o andamento em <a id="pw-orders-link" href="#" target="_blank" style="color:#166534;font-weight:700">Minha Conta → Pedidos</a>.
+            </div>
 
             <div id="pw-pix-qrcode" style="margin-top: 12px"></div>
 
@@ -502,6 +506,10 @@
           <div class="pw-actions-bottom">
             <button id="btn-back-3" class="pw-btn ghost" type="button">
               Voltar
+            </button>
+
+            <button id="btn-finish-no-pay" class="pw-btn ghost" type="button" style="display:none">
+              Finalizar sem pagar
             </button>
 
             <button id="btn-next-3" class="pw-btn" type="button" disabled>

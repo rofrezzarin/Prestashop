@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Pedidos
  * Description: Recebe, armazena e gerencia os pedidos da calculadora DTF UV.
- * Version: 2.4.24
+ * Version: 2.4.25
  * Author: PrintWay
  */
 
@@ -373,9 +373,25 @@ function pw_dtf_default_orders_to_dtf_uv() {
 	exit;
 }
 
+function pw_dtf_has_dtf_orders() {
+	if ( ! is_user_logged_in() ) {
+		return false;
+	}
+	$count = get_posts( array(
+		'post_type'      => 'pw_dtf_order',
+		'post_status'    => 'publish',
+		'author'         => get_current_user_id(),
+		'posts_per_page' => 1,
+		'fields'         => 'ids',
+	) );
+	return ! empty( $count );
+}
+
 function pw_dtf_remove_legacy_account_menu( $items ) {
 	unset( $items['pedidos-dtf-uv'] );
-
+	if ( ! pw_dtf_has_dtf_orders() && ! pw_dtf_has_site_orders() ) {
+		unset( $items['orders'] );
+	}
 	return $items;
 }
 

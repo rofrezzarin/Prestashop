@@ -2,7 +2,7 @@
 /**
  * Módulo: PrintWay DTF UV - Envio de pedidos
  * Description: Recebe os pedidos da calculadora DTF UV e envia os dados e anexos pelo wp_mail().
- * Version: 2.4.22
+ * Version: 2.4.23
  * Author: PrintWay
  */
 
@@ -2919,7 +2919,16 @@ function pw_dtf_delete_order() {
 		wp_send_json_error( array( 'message' => 'Pedidos já pagos não podem ser excluídos.' ), 409 );
 	}
 
-	$status          = (string) get_post_meta( $order_id, '_pw_dtf_status', true );
+	// Usa o status do sistema de pedidos (mesma lógica do display), com fallback para meta
+	$reference = (string) get_post_meta( $order_id, '_pw_dtf_reference', true );
+	$status    = '';
+	if ( $reference ) {
+		global $wpdb;
+		$orders_table = $wpdb->prefix . 'pw_personalizados_orders';
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$orders_table} WHERE object_id = %s LIMIT 1", $reference ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( $row ) { $status = (string) $row->status; }
+	}
+	if ( '' === $status ) { $status = (string) get_post_meta( $order_id, '_pw_dtf_status', true ); }
 	$allowed_statuses = array( 'Criação da arte', 'Arte enviada', 'Arte aprovada' );
 	if ( '' !== $status && ! in_array( $status, $allowed_statuses, true ) ) {
 		wp_send_json_error( array( 'message' => 'Este pedido está em fase avançada e não pode ser excluído pelo cliente.' ), 409 );

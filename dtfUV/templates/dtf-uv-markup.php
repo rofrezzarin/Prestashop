@@ -439,7 +439,7 @@
 
             <div id="pw-order-created-banner" style="display:none;margin-top:14px;padding:14px 18px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:14px;color:#166534;line-height:1.6">
               <strong>✓ Pedido criado com sucesso!</strong><br>
-              <span id="pw-order-created-ref"></span>Você pode consultar o andamento em <a id="pw-orders-link" href="#" target="_blank" style="color:#166534;font-weight:700">Minha Conta → Pedidos</a>.
+              <span id="pw-order-created-ref"></span>Você pode consultar o andamento em <a id="pw-orders-link" href="#" style="color:#166534;font-weight:700">Minha Conta → Pedidos</a>.
             </div>
 
             <div id="pw-pix-qrcode" style="margin-top: 12px"></div>

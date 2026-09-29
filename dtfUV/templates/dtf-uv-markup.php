@@ -567,7 +567,7 @@
             <label class="pw-field-label" for="pw-shipping-cep">CEP de entrega</label>
             <input id="pw-shipping-cep" class="pw-input" type="text" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="off" readonly style="background:#f3f4f6;cursor:default;color:#555" />
           </div>
-          <button id="pw-shipping-calc-btn" class="pw-btn" type="button" style="white-space:nowrap;display:none">Calcular frete</button>
+          <button id="pw-shipping-calc-btn" class="pw-btn" type="button" style="white-space:nowrap">Consultar frete</button>
         </div>
         <div id="pw-shipping-error" style="display:none;color:var(--danger);font-size:14px;margin-bottom:10px"></div>
         <div id="pw-shipping-loading" style="display:none;text-align:center;padding:18px 0;color:var(--muted)">Calculando opções de frete…</div>

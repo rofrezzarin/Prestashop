@@ -2906,14 +2906,20 @@
                 throw new Error((json.data && json.data.message) || "Nenhuma opção de frete disponível para este CEP.");
               }
               var services = json.data.services;
+              var minPrice = Math.min.apply(null, services.map(function(s) { return s.price; }));
+              var minTime  = Math.min.apply(null, services.map(function(s) { return (s.deliveryTime > 0 ? s.deliveryTime : 9999); }));
               if (shippingCards) {
                 shippingCards.innerHTML = "";
                 services.forEach(function(svc) {
+                  var badges = "";
+                  if (svc.price === minPrice) badges += '<span style="background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;margin-right:4px">Melhor preço</span>';
+                  if ((svc.deliveryTime > 0 ? svc.deliveryTime : 9999) === minTime) badges += '<span style="background:#2563eb;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">Mais rápido</span>';
                   var card = document.createElement("label");
                   card.style.cssText = "display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;";
                   card.innerHTML = '<input type="radio" name="pw-shipping-option" value="' + svc.code + '" style="flex-shrink:0;accent-color:var(--primary)">' +
                     '<div style="flex:1;min-width:0">' +
                     '<div style="font-weight:600;font-size:15px">' + svc.carrier + ' — ' + svc.description + '</div>' +
+                    (badges ? '<div style="margin-top:4px">' + badges + '</div>' : '') +
                     '<div class="muted" style="font-size:13px;margin-top:2px">' + (svc.deliveryTime > 0 ? svc.deliveryTime + ' dia(s) útil(eis)' : '') + '</div>' +
                     '</div>' +
                     '<div style="font-weight:700;font-size:16px;color:var(--primary);white-space:nowrap">R$ ' + svc.price.toFixed(2).replace('.', ',') + '</div>';
@@ -2931,6 +2937,12 @@
             } catch(e) {
               if (shippingLoading) shippingLoading.style.display = "none";
               if (shippingError) { shippingError.textContent = e.message || "Erro ao calcular frete."; shippingError.style.display = "block"; }
+              if (window.confirm("Não foi possível consultar o frete para o CEP informado. Deseja corrigir o CEP? Você será direcionado para a etapa inicial.")) {
+                pwDtfCloseShippingModal(true);
+                setActiveStep(1);
+                var cepFld = document.getElementById("sender-cep");
+                if (cepFld) { setTimeout(function() { cepFld.scrollIntoView({ behavior: "smooth", block: "center" }); cepFld.focus(); cepFld.select(); }, 300); }
+              }
             } finally {
               if (shippingCalcBtn) shippingCalcBtn.disabled = false;
             }

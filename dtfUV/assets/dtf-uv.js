@@ -2507,6 +2507,7 @@
           form.append("height_cm", Number(lastComputed.alturaOriginal).toFixed(2));
           form.append("customer_type", lastComputed.tipo || "");
           form.append("points_used", String(POINTS_USED || 0));
+          form.append("client_price", Number(lastComputed.precoFinal || 0).toFixed(2));
 
           const response = await fetch(
             window.PW_DTF_UPLOAD_URL || "/wp-admin/admin-ajax.php",
@@ -2536,13 +2537,10 @@
           }
 
           const serverOriginal = Number(json.data.original_amount || 0);
-          if (
-            !Number.isFinite(serverOriginal) ||
-            serverOriginal <= 0 ||
-            Math.abs(serverOriginal - Number(lastComputed.precoFinal || 0)) > 0.01
-          ) {
+          if (!Number.isFinite(serverOriginal) || serverOriginal <= 0) {
             throw new Error(
-              "A tabela de preços foi atualizada. Recalcule o pedido antes de pagar.",
+              (json && json.data && json.data.message) ||
+                "Não foi possível calcular o valor do pagamento.",
             );
           }
 

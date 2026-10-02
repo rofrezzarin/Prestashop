@@ -9127,7 +9127,7 @@
       '<tr><td colspan="' + (model.headers.length + 1) + '" class="pw-empty-table">Nenhum registro encontrado.</td></tr>';
     pruneBulkSelection(kind, rows.map(record => record.id));
     reportFooter(body, pageRows, rows, all, type === 'cost' ? { [dtfListTab === 'ads' ? 2 : 7]:{ label:'Total filtrado', value:rows.reduce((sum,record) => sum + Number(record.value || 0), 0) } } : null);
-    renderPagination(view, rows.length);
+    renderPagination(view, rows, all.length, r => String(r.name || r.item || r.date || ''));
   }
 
   const expenseWrites = new Set();
@@ -11009,16 +11009,65 @@
     openModal('pw-dashboard-report-modal', true);
   }
 
-  function renderPagination(view, total) {
+  function renderPagination(view, filteredRows, allTotal, primaryKeyFn) {
     const section = $('[data-view="' + view + '"]');
     if (!section) return;
     let host = $('.pw-pagination', section);
     if (!host) { host = document.createElement('div'); host.className = 'pw-pagination'; section.appendChild(host); }
     const legends = view === 'orders' ? $('.pw-table-legends', section) : null;
     if (legends) section.insertBefore(host, legends);
+
+    const total = Array.isArray(filteredRows) ? filteredRows.length : Number(filteredRows) || 0;
     const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     paginationState[view] = Math.min(paginationState[view] || 1, pages);
-    host.innerHTML = '<button class="pw-btn pw-btn-soft" type="button" data-page="' + view + '" data-page-number="' + (paginationState[view] - 1) + '"' + (paginationState[view] <= 1 ? ' disabled' : '') + '>‹</button><span>Página ' + paginationState[view] + ' de ' + pages + ' · ' + total + ' registro(s)</span><button class="pw-btn pw-btn-soft" type="button" data-page="' + view + '" data-page-number="' + (paginationState[view] + 1) + '"' + (paginationState[view] >= pages ? ' disabled' : '') + '>›</button>';
+    const cur = paginationState[view];
+    const pageStart = (cur - 1) * PAGE_SIZE;
+    const pageEnd = Math.min(pageStart + PAGE_SIZE, total);
+    const pageCount = pageEnd - pageStart;
+    const safeAllTotal = Number(allTotal) || total;
+
+    const pageLabel = 'Pág. ' + cur + ' de ' + pages;
+    const countsLabel = pageCount + ' registro' + (pageCount !== 1 ? 's' : '') + ' de ' + total;
+    const totalLabel = safeAllTotal + ' cadastrado' + (safeAllTotal !== 1 ? 's' : '') + ' no sistema';
+
+    const truncLabel = text => { const s = String(text || '').trim(); return s.length > 15 ? s.substring(0, 14) + '…' : s; };
+
+    let navHtml = '';
+    if (pages > 1) {
+      const toShow = new Set([1, 2, pages - 1, pages]);
+      for (let p = Math.max(1, cur - 2); p <= Math.min(pages, cur + 2); p++) toShow.add(p);
+      const sorted = [...toShow].filter(p => p >= 1 && p <= pages).sort((a, b) => a - b);
+      let prev = 0;
+      const numBtns = sorted.map(p => {
+        let prefix = prev && p > prev + 1 ? '<span class="pw-page-ellipsis" aria-hidden="true">…</span>' : '';
+        prev = p;
+        let tooltip = '';
+        if (primaryKeyFn && Array.isArray(filteredRows)) {
+          const firstRow = filteredRows[(p - 1) * PAGE_SIZE];
+          const lastRow = filteredRows[Math.min(p * PAGE_SIZE, total) - 1];
+          if (firstRow) {
+            const fl = truncLabel(primaryKeyFn(firstRow));
+            const ll = lastRow ? truncLabel(primaryKeyFn(lastRow)) : fl;
+            tooltip = fl === ll ? 'Registro: ‘' + fl + '’' : 'De ‘' + fl + '’ até ‘' + ll + '’';
+          }
+        }
+        const ttAttrs = tooltip ? ' title="' + escapeHtml(tooltip) + '" data-tooltip="' + escapeHtml(tooltip) + '"' : '';
+        const isCur = p === cur;
+        return prefix + '<button class="pw-page-num pw-tooltip' + (isCur ? ' pw-page-current' : '') + '" type="button" data-page="' + view + '" data-page-number="' + p + '"' + ttAttrs + (isCur ? ' aria-current="page"' : '') + '>' + p + '</button>';
+      }).join('');
+      navHtml = '<div class="pw-pagination-nav" role="navigation" aria-label="Páginas">' +
+        '<button class="pw-page-arrow" type="button" data-page="' + view + '" data-page-number="' + (cur - 1) + '" aria-label="Página anterior"' + (cur <= 1 ? ' disabled' : '') + '>‹</button>' +
+        numBtns +
+        '<button class="pw-page-arrow" type="button" data-page="' + view + '" data-page-number="' + (cur + 1) + '" aria-label="Próxima página"' + (cur >= pages ? ' disabled' : '') + '>›</button>' +
+        '</div>';
+    }
+
+    host.innerHTML =
+      '<div class="pw-pagination-info">' +
+        '<strong class="pw-pagination-page-label">' + escapeHtml(pageLabel) + '</strong>' +
+        '<span class="pw-pagination-counts">' + escapeHtml(countsLabel) + '</span>' +
+        '<span class="pw-pagination-total">' + escapeHtml(totalLabel) + '</span>' +
+      '</div>' + navHtml;
   }
 
   function reportFooter(tbody, pageRows, filteredRows, allRows, sums) {
@@ -11361,7 +11410,7 @@
       : '<tr><td class="pw-empty-table" colspan="10">Nenhum pedido encontrado.</td></tr>';
     pruneBulkSelection('order', rows.map(order => order.orderNumber));
     reportFooter(body, pageRows, rows, allRows, { 9: { label:'Total filtrado', value:rows.reduce((sum, order) => sum + adjustedOrderTotal(order), 0) } });
-    renderPagination('orders', rows.length);
+    renderPagination('orders', rows, allRows.length, o => '#' + String(o.orderNumber || ''));
     updateSortIndicators('orders', '[data-view="orders"] thead');
   }
 
@@ -11388,7 +11437,7 @@
       : '<tr><td class="pw-empty-table" colspan="7">Nenhum cliente encontrado.</td></tr>';
     pruneBulkSelection('client', rows.map(client => client.id));
     reportFooter(body, pageRows, rows, allRows);
-    renderPagination('clients', rows.length);
+    renderPagination('clients', rows, allRows.length, c => String(c.name || c.code || ''));
     updateSortIndicators('clients', '[data-view="clients"] thead');
   }
 
@@ -11424,7 +11473,7 @@
       6: { label:'Custo filtrado', value:rows.reduce((sum, product) => sum + Number(product.cost || 0), 0) },
       7: { label:'Venda filtrada', value:rows.reduce((sum, product) => sum + Number(product.price || 0), 0) }
     });
-    renderPagination('products', rows.length);
+    renderPagination('products', rows, allRows.length, p => String(p.description || p.code || ''));
     updateSortIndicators('products', '[data-view="products"] thead');
   }
 
@@ -11509,7 +11558,7 @@
     }).join('') : '<tr><td class="pw-empty-table" colspan="8">Nenhum registro encontrado.</td></tr>';
     pruneBulkSelection(kind, rows.map(record => record.id));
     reportFooter(body, pageRows, rows, allRows);
-    renderPagination(pageKey, rows.length);
+    renderPagination(pageKey, rows, allRows.length, r => String(r.name || r.code || ''));
     // config.plural é a chave usada pra paginação/ordenação (nem sempre bate
     // com o valor de data-view no HTML — ex.: "paymentMethods" vs. o atributo
     // "payment-methods" — por isso o mapeamento explícito aqui).

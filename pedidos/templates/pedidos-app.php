@@ -11,6 +11,9 @@
   <div class="pw-message" id="pw-message" role="status" aria-live="polite"><span id="pw-message-text"></span><b id="pw-message-countdown" class="pw-message-countdown"></b></div>
 
   <div class="pw-access-panel pw-visible" id="pw-access-panel" role="status" aria-live="polite">
+    <div class="pw-access-panel-logo">
+      <img src="<?php echo esc_url( PW_PERSONALIZADOS_URL . 'assets/antasys-logo-v2.png?v=' . PW_PERSONALIZADOS_VERSION ); ?>" alt="AntaSys">
+    </div>
     <h3 id="pw-access-title">Verificando acesso...</h3>
     <p id="pw-access-text">Aguarde enquanto identificamos o usuário conectado ao WordPress.</p>
     <div class="pw-startup-progress" id="pw-startup-progress" aria-label="Progresso de abertura do sistema">

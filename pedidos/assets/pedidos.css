@@ -73,6 +73,19 @@
     display: block;
   }
 
+  #pw-personalizados-app .pw-access-panel-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--pw-border);
+  }
+  #pw-personalizados-app .pw-access-panel-logo img {
+    display: block;
+    width: min(420px, 100%);
+    height: auto;
+  }
+
   #pw-personalizados-app .pw-access-panel h3,
   #pw-personalizados-app .pw-access-panel p {
     margin: 0;
